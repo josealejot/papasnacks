@@ -1,0 +1,202 @@
+{% extends "base.html" %}
+
+{% block title %}Directorio de Clientes - {{ settings.BUSINESS_NAME }}{% endblock %}
+{% block page_header %}Directorio de Clientes (CRUD){% endblock %}
+{% block page_subtitle %}Administra tus clientes, tiendas, puntos de venta y su historial de compras y créditos{% endblock %}
+
+{% block content %}
+<div class="flex flex-wrap items-center justify-between gap-4 bg-white p-5 rounded-2xl border border-slate-200 shadow-xs">
+    <form action="/clientes" method="get" class="flex flex-wrap items-center gap-2 flex-1">
+        <input type="text" name="q" value="{{ q }}" placeholder="Buscar por nombre, teléfono o dirección..."
+            class="flex-1 min-w-[220px] px-3.5 py-2.5 rounded-xl border border-slate-300 text-xs md:text-sm">
+        <select name="filtro" onchange="this.form.submit()" class="px-3 py-2.5 rounded-xl border border-slate-300 text-xs md:text-sm font-bold bg-white">
+            <option value="todos" {% if filtro == 'todos' %}selected{% endif %}>Todos los Clientes</option>
+            <option value="deudores" {% if filtro == 'deudores' %}selected{% endif %}>🔴 Con Saldo Pendiente</option>
+            <option value="aldia" {% if filtro == 'aldia' %}selected{% endif %}>🟢 Al Día ($ 0 deuda)</option>
+        </select>
+        <button type="submit" class="px-4 py-2.5 rounded-xl bg-slate-900 text-white font-bold text-xs md:text-sm">Buscar</button>
+    </form>
+
+    <button type="button" onclick="abrirModal('modalCrearCliente')" class="px-5 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-slate-950 font-extrabold text-xs md:text-sm shadow transition">
+        + Nuevo Cliente
+    </button>
+</div>
+
+<div class="bg-white rounded-2xl border border-slate-200 p-5 shadow-xs">
+    <div class="overflow-x-auto">
+        <table class="w-full text-left border-collapse text-xs md:text-sm">
+            <thead>
+                <tr class="bg-slate-900 text-white">
+                    <th class="py-3 px-4 rounded-tl-xl">Cliente / Tienda</th>
+                    <th class="py-3 px-4">Tipo</th>
+                    <th class="py-3 px-4">Contacto / Dirección</th>
+                    <th class="py-3 px-4 text-right">Total Comprado</th>
+                    <th class="py-3 px-4 text-right">Deuda Actual</th>
+                    <th class="py-3 px-4 text-right rounded-tr-xl">Acciones</th>
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-200">
+                {% for c in clientes %}
+                <tr class="hover:bg-slate-50">
+                    <td class="py-3.5 px-4">
+                        <div class="font-extrabold text-slate-900">{{ c.nombre }}</div>
+                        {% if c.documento %}<div class="text-[11px] text-slate-400">NIT/CC: {{ c.documento }}</div>{% endif %}
+                    </td>
+                    <td class="py-3.5 px-4">
+                        <span class="px-2.5 py-1 rounded-lg bg-slate-100 text-slate-700 font-bold text-xs">{{ c.tipo_cliente }}</span>
+                    </td>
+                    <td class="py-3.5 px-4 text-xs text-slate-600">
+                        <div>📞 {{ c.telefono or 'Sin teléfono' }}</div>
+                        <div class="text-slate-400">📍 {{ c.direccion or 'Sin dirección' }}</div>
+                    </td>
+                    <td class="py-3.5 px-4 text-right font-bold text-slate-800">{{ c.total_comprado | cop }}</td>
+                    <td class="py-3.5 px-4 text-right">
+                        {% if c.deuda_total > 0 %}
+                        <span class="px-2.5 py-1 rounded-full bg-rose-100 text-rose-800 font-extrabold text-xs">
+                            🔴 {{ c.deuda_total | cop }}
+                        </span>
+                        {% else %}
+                        <span class="px-2.5 py-1 rounded-full bg-emerald-100 text-emerald-800 font-extrabold text-xs">
+                            🟢 Al Día
+                        </span>
+                        {% endif %}
+                    </td>
+                    <td class="py-3.5 px-4 text-right">
+                        <div class="flex items-center justify-end gap-1.5">
+                            <button type="button"
+                                onclick="abrirEditarCliente('{{ c.id }}', '{{ c.nombre }}', '{{ c.documento }}', '{{ c.telefono }}', '{{ c.direccion }}', '{{ c.tipo_cliente }}', '{{ c.cupo_credito | int }}', '{{ c.notas }}')"
+                                class="px-3 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs">
+                                ✏️ Editar
+                            </button>
+                            {% if c.deuda_total == 0 %}
+                            <form action="/clientes/{{ c.id }}/eliminar" method="post" onsubmit="return confirm('¿Eliminar o archivar este cliente?');">
+                                <button type="submit" class="px-2.5 py-1.5 rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-700 font-bold text-xs">🗑️</button>
+                            </form>
+                            {% endif %}
+                        </div>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- MODAL CREAR CLIENTE -->
+<div id="modalCrearCliente" class="fixed inset-0 bg-slate-900/60 hidden items-center justify-center z-50 p-4">
+    <div class="bg-white rounded-2xl shadow-2xl max-w-md w-full overflow-hidden animate-modal">
+        <div class="bg-slate-900 text-white px-6 py-4 flex items-center justify-between">
+            <h3 class="text-base font-extrabold text-amber-400">👤 Registrar Nuevo Cliente</h3>
+            <button type="button" onclick="cerrarModal('modalCrearCliente')" class="text-slate-400 hover:text-white font-bold">✕</button>
+        </div>
+        <form action="/clientes/crear" method="post" class="p-6 space-y-3.5">
+            <input type="hidden" name="origen" value="/clientes">
+            <div>
+                <label class="block text-xs font-bold text-slate-700 mb-1">Nombre Completo o Negocio *</label>
+                <input type="text" name="nombre" required placeholder="Ej: Cafetería El Parque" class="w-full px-3 py-2 rounded-xl border border-slate-300 text-sm font-bold">
+            </div>
+            <div class="grid grid-cols-2 gap-3">
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 mb-1">NIT / Cédula</label>
+                    <input type="text" name="documento" class="w-full px-3 py-2 rounded-xl border border-slate-300 text-sm">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 mb-1">Teléfono / WhatsApp</label>
+                    <input type="text" name="telefono" class="w-full px-3 py-2 rounded-xl border border-slate-300 text-sm">
+                </div>
+            </div>
+            <div class="grid grid-cols-2 gap-3">
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 mb-1">Tipo de Cliente</label>
+                    <select name="tipo_cliente" class="w-full px-3 py-2 rounded-xl border border-slate-300 text-sm bg-white">
+                        <option value="Frecuente">Frecuente</option>
+                        <option value="Tienda / Punto">Tienda / Punto</option>
+                        <option value="Mayorista">Mayorista</option>
+                        <option value="Detal">Detal</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 mb-1">Cupo Crédito ($)</label>
+                    <input type="number" step="10000" name="cupo_credito" value="500000" class="w-full px-3 py-2 rounded-xl border border-slate-300 text-sm font-bold">
+                </div>
+            </div>
+            <div>
+                <label class="block text-xs font-bold text-slate-700 mb-1">Dirección / Punto de entrega</label>
+                <input type="text" name="direccion" class="w-full px-3 py-2 rounded-xl border border-slate-300 text-sm">
+            </div>
+            <div>
+                <label class="block text-xs font-bold text-slate-700 mb-1">Notas</label>
+                <input type="text" name="notas" class="w-full px-3 py-2 rounded-xl border border-slate-300 text-sm">
+            </div>
+            <div class="flex justify-end gap-2 pt-2">
+                <button type="button" onclick="cerrarModal('modalCrearCliente')" class="px-4 py-2 rounded-xl border border-slate-300 text-sm font-semibold">Cancelar</button>
+                <button type="submit" class="px-5 py-2 rounded-xl bg-amber-500 hover:bg-amber-600 text-slate-950 font-extrabold text-sm">Guardar Cliente</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- MODAL EDITAR CLIENTE -->
+<div id="modalEditarCliente" class="fixed inset-0 bg-slate-900/60 hidden items-center justify-center z-50 p-4">
+    <div class="bg-white rounded-2xl shadow-2xl max-w-md w-full overflow-hidden animate-modal">
+        <div class="bg-slate-900 text-white px-6 py-4 flex items-center justify-between">
+            <h3 class="text-base font-extrabold text-amber-400">✏️ Editar Cliente</h3>
+            <button type="button" onclick="cerrarModal('modalEditarCliente')" class="text-slate-400 hover:text-white font-bold">✕</button>
+        </div>
+        <form id="formEditarCliente" method="post" class="p-6 space-y-3.5">
+            <div>
+                <label class="block text-xs font-bold text-slate-700 mb-1">Nombre Completo o Negocio *</label>
+                <input type="text" name="nombre" id="edit_cli_nombre" required class="w-full px-3 py-2 rounded-xl border border-slate-300 text-sm font-bold">
+            </div>
+            <div class="grid grid-cols-2 gap-3">
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 mb-1">NIT / Cédula</label>
+                    <input type="text" name="documento" id="edit_cli_doc" class="w-full px-3 py-2 rounded-xl border border-slate-300 text-sm">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 mb-1">Teléfono</label>
+                    <input type="text" name="telefono" id="edit_cli_tel" class="w-full px-3 py-2 rounded-xl border border-slate-300 text-sm">
+                </div>
+            </div>
+            <div class="grid grid-cols-2 gap-3">
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 mb-1">Tipo</label>
+                    <input type="text" name="tipo_cliente" id="edit_cli_tipo" class="w-full px-3 py-2 rounded-xl border border-slate-300 text-sm">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 mb-1">Cupo Crédito ($)</label>
+                    <input type="number" step="10000" name="cupo_credito" id="edit_cli_cupo" class="w-full px-3 py-2 rounded-xl border border-slate-300 text-sm font-bold">
+                </div>
+            </div>
+            <div>
+                <label class="block text-xs font-bold text-slate-700 mb-1">Dirección</label>
+                <input type="text" name="direccion" id="edit_cli_dir" class="w-full px-3 py-2 rounded-xl border border-slate-300 text-sm">
+            </div>
+            <div>
+                <label class="block text-xs font-bold text-slate-700 mb-1">Notas</label>
+                <input type="text" name="notas" id="edit_cli_notas" class="w-full px-3 py-2 rounded-xl border border-slate-300 text-sm">
+            </div>
+            <div class="flex justify-end gap-2 pt-2">
+                <button type="button" onclick="cerrarModal('modalEditarCliente')" class="px-4 py-2 rounded-xl border border-slate-300 text-sm font-semibold">Cancelar</button>
+                <button type="submit" class="px-5 py-2 rounded-xl bg-amber-500 hover:bg-amber-600 text-slate-950 font-extrabold text-sm">Actualizar</button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function abrirEditarCliente(id, nombre, doc, tel, dir, tipo, cupo, notas) {
+    document.getElementById("formEditarCliente").action = "/clientes/" + id + "/editar";
+    document.getElementById("edit_cli_nombre").value = nombre;
+    document.getElementById("edit_cli_doc").value = doc;
+    document.getElementById("edit_cli_tel").value = tel;
+    document.getElementById("edit_cli_dir").value = dir;
+    document.getElementById("edit_cli_tipo").value = tipo;
+    document.getElementById("edit_cli_cupo").value = cupo;
+    document.getElementById("edit_cli_notas").value = notas;
+    abrirModal("modalEditarCliente");
+}
+</script>
+{% endblock %}

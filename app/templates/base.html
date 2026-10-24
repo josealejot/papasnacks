@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}{{ settings.BUSINESS_NAME }} - Gestión de Capital y Snacks{% endblock %}</title>
+    <link rel="icon" type="image/svg+xml" href="/static/img/logo.svg">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="/static/css/custom.css">
+</head>
+<body class="bg-slate-50 text-slate-800 antialiased min-h-screen flex flex-col md:flex-row">
+
+    <!-- SIDEBAR NAVEGACIÓN PRINCIPAL -->
+    <aside class="w-full md:w-64 bg-slate-900 text-white flex-shrink-0 flex flex-col justify-between shadow-xl z-20">
+        <div>
+            <!-- Marca / Logo -->
+            <div class="p-5 flex items-center justify-between border-b border-slate-800">
+                <a href="/" class="flex items-center gap-3">
+                    <img src="/static/img/logo.svg" alt="Logo" class="w-10 h-10 rounded-xl shadow-md">
+                    <div>
+                        <span class="font-extrabold text-sm tracking-tight text-amber-400 block leading-tight">INVERSIONES "EL PROFETA"</span>
+                        <span class="text-[11px] text-slate-400 font-medium">NIT: {{ settings.BUSINESS_NIT }} • Snacks</span>
+                    </div>
+                </a>
+                <!-- Botón menú móvil -->
+                <button onclick="document.getElementById('nav-menu').classList.toggle('hidden')" class="md:hidden p-2 rounded-lg bg-slate-800 text-slate-300 hover:text-white">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/></svg>
+                </button>
+            </div>
+
+            <!-- Enlaces de Navegación -->
+            <nav id="nav-menu" class="hidden md:block p-3 space-y-1.5">
+                <a href="/" class="flex items-center gap-3 px-4 py-3 rounded-xl font-semibold text-sm transition-all {% if pagina_activa == 'dashboard' %}bg-amber-500 text-slate-950 shadow-md shadow-amber-500/20{% else %}text-slate-300 hover:bg-slate-800 hover:text-white{% endif %}">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/></svg>
+                    <span>Panel de Capital</span>
+                </a>
+
+                <a href="/ventas" class="flex items-center gap-3 px-4 py-3 rounded-xl font-semibold text-sm transition-all {% if pagina_activa == 'ventas' %}bg-amber-500 text-slate-950 shadow-md shadow-amber-500/20{% else %}text-slate-300 hover:bg-slate-800 hover:text-white{% endif %}">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z"/></svg>
+                    <span>Vender / Facturas</span>
+                </a>
+
+                <a href="/cartera" class="flex items-center gap-3 px-4 py-3 rounded-xl font-semibold text-sm transition-all {% if pagina_activa == 'cartera' %}bg-amber-500 text-slate-950 shadow-md shadow-amber-500/20{% else %}text-slate-300 hover:bg-slate-800 hover:text-white{% endif %}">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z"/></svg>
+                    <span>Cartera y Cobros</span>
+                </a>
+
+                <a href="/inventario" class="flex items-center gap-3 px-4 py-3 rounded-xl font-semibold text-sm transition-all {% if pagina_activa == 'inventario' %}bg-amber-500 text-slate-950 shadow-md shadow-amber-500/20{% else %}text-slate-300 hover:bg-slate-800 hover:text-white{% endif %}">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/></svg>
+                    <span>Inventario Snacks</span>
+                </a>
+
+                <a href="/clientes" class="flex items-center gap-3 px-4 py-3 rounded-xl font-semibold text-sm transition-all {% if pagina_activa == 'clientes' %}bg-amber-500 text-slate-950 shadow-md shadow-amber-500/20{% else %}text-slate-300 hover:bg-slate-800 hover:text-white{% endif %}">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+                    <span>Clientes</span>
+                </a>
+
+                <a href="/reportes" class="flex items-center gap-3 px-4 py-3 rounded-xl font-semibold text-sm transition-all {% if pagina_activa == 'reportes' %}bg-amber-500 text-slate-950 shadow-md shadow-amber-500/20{% else %}text-slate-300 hover:bg-slate-800 hover:text-white{% endif %}">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+                    <span>Reportes Excel / PDF</span>
+                </a>
+            </nav>
+        </div>
+
+        <!-- Regla base comercial recordatoria en el pie del sidebar -->
+        <div class="hidden md:block p-4 m-3 rounded-xl bg-slate-800/90 border border-slate-700 text-xs space-y-1.5">
+            <div class="font-bold text-amber-400 flex items-center gap-1.5">
+                <span>🥔</span> Margen Base Snack
+            </div>
+            <div class="flex justify-between text-slate-300">
+                <span>Costo Proveedor:</span>
+                <span class="font-semibold text-white">$ 2.700</span>
+            </div>
+            <div class="flex justify-between text-slate-300">
+                <span>Precio Venta:</span>
+                <span class="font-semibold text-emerald-400">$ 4.000</span>
+            </div>
+            <div class="flex justify-between text-slate-300 pt-1 border-t border-slate-700">
+                <span>Ganancia / Und:</span>
+                <span class="font-bold text-amber-300">+ $ 1.300 (32.5%)</span>
+            </div>
+        </div>
+    </aside>
+
+    <!-- CONTENIDO PRINCIPAL -->
+    <div class="flex-1 flex flex-col min-w-0">
+        <!-- Barra superior rápida -->
+        <header class="bg-white border-b border-slate-200 px-6 py-3.5 flex flex-wrap items-center justify-between gap-3 sticky top-0 z-10">
+            <div>
+                <h1 class="text-lg md:text-xl font-extrabold text-slate-900">{% block page_header %}Panel Principal{% endblock %}</h1>
+                <p class="text-xs text-slate-500">{% block page_subtitle %}Control en tiempo real de efectivo, transferencias, cartera e inventario{% endblock %}</p>
+            </div>
+            <div class="flex items-center gap-2.5">
+                <a href="/ventas" class="inline-flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs md:text-sm px-4 py-2.5 rounded-xl shadow-sm transition">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4"/></svg>
+                    <span>Nueva Venta</span>
+                </a>
+                <a href="/cartera" class="inline-flex items-center gap-2 bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold text-xs md:text-sm px-4 py-2.5 rounded-xl shadow-sm transition">
+                    <span>💰 Cobrar Cartera</span>
+                </a>
+                <a href="/reportes/excel" class="hidden sm:inline-flex items-center gap-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold text-xs md:text-sm px-3.5 py-2.5 rounded-xl border border-slate-300 transition" title="Descargar Excel Completo">
+                    <span>📊 Excel</span>
+                </a>
+            </div>
+        </header>
+
+        <!-- Notificaciones Flash Amigables -->
+        {% set msg = request.query_params.get('msg') %}
+        {% set tipo = request.query_params.get('tipo', 'exito') %}
+        {% if msg %}
+        <div id="flash-banner" class="mx-6 mt-4 p-4 rounded-xl border flex items-center justify-between shadow-sm {% if tipo == 'error' %}bg-rose-50 border-rose-300 text-rose-800{% elif tipo == 'alerta' %}bg-amber-50 border-amber-300 text-amber-900{% else %}bg-emerald-50 border-emerald-300 text-emerald-900{% endif %}">
+            <div class="flex items-center gap-3 font-semibold text-sm">
+                <span class="text-lg">{% if tipo == 'error' %}❌{% elif tipo == 'alerta' %}⚠️{% else %}✅{% endif %}</span>
+                <span>{{ msg }}</span>
+            </div>
+            <button onclick="this.parentElement.remove()" class="text-sm font-bold px-2 py-1 rounded hover:bg-black/5">✕</button>
+        </div>
+        {% endif %}
+
+        <!-- Cuerpo de la vista -->
+        <main class="p-4 md:p-6 flex-1 space-y-6 max-w-7xl w-full mx-auto">
+            {% block content %}{% endblock %}
+        </main>
+
+        <!-- Footer -->
+        <footer class="px-6 py-4 text-center text-xs text-slate-400 border-t border-slate-200 bg-white">
+            <strong>{{ settings.BUSINESS_NAME }}</strong> — Sistema ERP de Gestión Comercial y Control de Capital
+        </footer>
+    </div>
+
+    <!-- Modal Global para Registrar Abono de Cartera -->
+    {% include "components/modal_abono.html" %}
+
+    <script src="/static/js/app.js"></script>
+    {% block extra_js %}{% endblock %}
+</body>
+</html>

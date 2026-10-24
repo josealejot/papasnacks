@@ -1,0 +1,438 @@
+{% extends "base.html" %}
+
+{% block title %}Registrar Venta y Facturación - {{ settings.BUSINESS_NAME }}{% endblock %}
+{% block page_header %}Punto de Venta (POS) y Facturación{% endblock %}
+{% block page_subtitle %}Registra una venta de snacks en segundos con pago en Efectivo, Transferencia, Mixto o a Crédito{% endblock %}
+
+{% block content %}
+<div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+
+    <!-- COLUMNA IZQUIERDA (7 COLS): REGISTRADOR DE VENTA SÚPER INTUITIVO -->
+    <div class="lg:col-span-7 bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+        <div class="bg-slate-900 text-white px-6 py-4 flex items-center justify-between">
+            <div>
+                <h2 class="text-base md:text-lg font-extrabold text-amber-400">🛒 Nueva Venta de Snacks</h2>
+                <p class="text-xs text-slate-300">Sigue los 3 pasos simples: Cliente ➔ Cantidad de Snacks ➔ Forma de Pago</p>
+            </div>
+            <button type="button" onclick="abrirModal('modalClienteRapido')" class="px-3 py-1.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-slate-950 font-extrabold text-xs transition">
+                + Nuevo Cliente
+            </button>
+        </div>
+
+        <form action="/ventas/crear" method="post" id="formPosVenta" class="p-5 md:p-6 space-y-6">
+
+            <!-- PASO 1: SELECCIONAR CLIENTE -->
+            <div class="bg-slate-50 p-4 rounded-xl border border-slate-200">
+                <label class="block text-xs font-extrabold uppercase tracking-wider text-slate-700 mb-2">
+                    👤 PASO 1: ¿A quién le vendes?
+                </label>
+                <select name="cliente_id" required class="w-full px-3.5 py-3 rounded-xl border border-slate-300 bg-white font-bold text-slate-900 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500">
+                    {% for c in clientes %}
+                    <option value="{{ c.id }}">
+                        {{ c.nombre }} {% if c.tipo_cliente %}({{ c.tipo_cliente }}){% endif %} {% if c.deuda_total > 0 %}— ⚠️ Debe: {{ c.deuda_total | cop }}{% endif %}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <!-- PASO 2: ELEGIR SNACKS Y CANTIDADES -->
+            <div class="space-y-3">
+                <div class="flex items-center justify-between">
+                    <label class="block text-xs font-extrabold uppercase tracking-wider text-slate-700">
+                        🥔 PASO 2: ¿Cuántos paquetes de snacks lleva?
+                    </label>
+                    <span class="text-xs font-semibold text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-lg border border-emerald-200">
+                        Precio base: $ 4.000 c/u (Ganancia: $ 1.300 c/u)
+                    </span>
+                </div>
+
+                <div class="space-y-2.5">
+                    {% for p in productos %}
+                    <div class="p-3.5 rounded-xl border border-slate-200 hover:border-amber-400 bg-white transition flex flex-col sm:flex-row sm:items-center justify-between gap-3 fila-producto"
+                         data-id="{{ p.id }}"
+                         data-costo="{{ p.costo_compra }}"
+                         data-precio="{{ p.precio_venta }}"
+                         data-stock="{{ p.stock_actual }}">
+
+                        <input type="hidden" name="producto_id" value="{{ p.id }}">
+
+                        <div class="min-w-0 flex-1">
+                            <div class="flex items-center gap-2">
+                                <span class="font-extrabold text-sm text-slate-900">{{ p.nombre }}</span>
+                                <span class="px-2 py-0.5 rounded-md text-[10px] font-bold {% if p.stock_actual > p.stock_minimo %}bg-emerald-100 text-emerald-800{% elif p.stock_actual > 0 %}bg-amber-100 text-amber-800{% else %}bg-rose-100 text-rose-800{% endif %}">
+                                    Stock: {{ p.stock_actual }}
+                                </span>
+                            </div>
+                            <div class="text-xs text-slate-500 mt-0.5">
+                                Sabor: {{ p.sabor }} | Costo: {{ p.costo_compra | cop }} ➔ Venta: <strong class="text-slate-800">{{ p.precio_venta | cop }}</strong>
+                            </div>
+                        </div>
+
+                        <!-- Botones rápidos de cantidad + Input de cantidad y precio -->
+                        <div class="flex flex-wrap items-center gap-1.5">
+                            <button type="button" onclick="sumarCantidad({{ loop.index0 }}, 1)" class="px-2.5 py-1.5 rounded-lg bg-slate-100 hover:bg-amber-200 text-slate-800 font-extrabold text-xs transition">+1</button>
+                            <button type="button" onclick="sumarCantidad({{ loop.index0 }}, 5)" class="px-2.5 py-1.5 rounded-lg bg-slate-100 hover:bg-amber-200 text-slate-800 font-extrabold text-xs transition">+5</button>
+                            <button type="button" onclick="sumarCantidad({{ loop.index0 }}, 10)" class="px-2.5 py-1.5 rounded-lg bg-slate-100 hover:bg-amber-200 text-slate-800 font-extrabold text-xs transition">+10</button>
+                            <button type="button" onclick="fijarCantidad({{ loop.index0 }}, 0)" class="px-2 py-1.5 rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-700 font-bold text-xs transition" title="Poner en 0">0</button>
+
+                            <div class="w-20">
+                                <input type="number" name="cantidad" min="0" max="{{ p.stock_actual }}" value="{% if loop.first %}1{% else %}0{% endif %}"
+                                    oninput="recalcularVenta()"
+                                    class="input-cantidad w-full text-center px-2 py-1.5 rounded-lg border-2 border-slate-300 font-extrabold text-slate-900 text-sm focus:outline-none focus:border-amber-500">
+                            </div>
+
+                            <div class="w-24">
+                                <input type="number" name="precio_unitario" step="50" min="100" value="{{ p.precio_venta | int }}"
+                                    oninput="recalcularVenta()"
+                                    title="Precio unitario de venta ($)"
+                                    class="input-precio w-full text-right px-2 py-1.5 rounded-lg border border-slate-200 bg-slate-50 font-bold text-slate-700 text-xs">
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+
+            <!-- RESUMEN DE LA VENTA EN VIVO -->
+            <div class="bg-slate-900 text-white rounded-2xl p-4 grid grid-cols-3 gap-3 text-center shadow-inner">
+                <div>
+                    <span class="text-[11px] text-slate-400 uppercase font-bold block">Total Unidades</span>
+                    <span id="pos_total_unidades" class="text-xl md:text-2xl font-extrabold text-amber-400">1 und</span>
+                </div>
+                <div class="border-x border-slate-700">
+                    <span class="text-[11px] text-slate-400 uppercase font-bold block">Total a Cobrar</span>
+                    <span id="pos_total_venta" class="text-xl md:text-2xl font-extrabold text-white">$ 4.000</span>
+                </div>
+                <div>
+                    <span class="text-[11px] text-slate-400 uppercase font-bold block">Tu Ganancia</span>
+                    <span id="pos_utilidad" class="text-xl md:text-2xl font-extrabold text-emerald-400">+ $ 1.300</span>
+                </div>
+            </div>
+
+            <!-- PASO 3: MODALIDAD DE PAGO (EFECTIVO, TRANSFERENCIA, MIXTO O CRÉDITO) -->
+            <div class="bg-slate-50 p-4 rounded-xl border border-slate-200 space-y-4">
+                <label class="block text-xs font-extrabold uppercase tracking-wider text-slate-700">
+                    💰 PASO 3: ¿Cómo te pagan esta venta? (Toca un botón o escribe el pago mixto)
+                </label>
+
+                <!-- Botones grandes de 1 clic -->
+                <div class="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                    <button type="button" onclick="modoPagoPos('EFECTIVO')"
+                        class="p-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs shadow-xs transition flex flex-col items-center gap-1">
+                        <span class="text-base">💵</span>
+                        <span>Todo Efectivo</span>
+                    </button>
+                    <button type="button" onclick="modoPagoPos('TRANSFERENCIA')"
+                        class="p-3 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-extrabold text-xs shadow-xs transition flex flex-col items-center gap-1">
+                        <span class="text-base">📲</span>
+                        <span>Todo Transferencia</span>
+                    </button>
+                    <button type="button" onclick="modoPagoPos('MIXTO')"
+                        class="p-3 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-extrabold text-xs shadow-xs transition flex flex-col items-center gap-1">
+                        <span class="text-base">⚖️</span>
+                        <span>Pago Mixto 50/50</span>
+                    </button>
+                    <button type="button" onclick="modoPagoPos('CREDITO')"
+                        class="p-3 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-extrabold text-xs shadow-xs transition flex flex-col items-center gap-1">
+                        <span class="text-base">📕</span>
+                        <span>Fiado / A Crédito</span>
+                    </button>
+                </div>
+
+                <!-- Cajas de Efectivo y Transferencia -->
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div class="bg-white p-3.5 rounded-xl border-2 border-emerald-300">
+                        <label class="block text-xs font-extrabold text-emerald-800 mb-1">💵 Pagado en EFECTIVO ($)</label>
+                        <input type="number" step="50" min="0" name="pagado_efectivo" id="pos_efectivo" value="4000"
+                            oninput="actualizarEstadoPagoPos()"
+                            class="w-full px-3 py-2 rounded-lg border border-slate-300 font-extrabold text-lg text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500">
+                    </div>
+
+                    <div class="bg-white p-3.5 rounded-xl border-2 border-blue-300">
+                        <label class="block text-xs font-extrabold text-blue-800 mb-1">📲 Pagado por TRANSFERENCIA ($)</label>
+                        <input type="number" step="50" min="0" name="pagado_transferencia" id="pos_transferencia" value="0"
+                            oninput="actualizarEstadoPagoPos()"
+                            class="w-full px-3 py-2 rounded-lg border border-slate-300 font-extrabold text-lg text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    </div>
+                </div>
+
+                <!-- Indicador semántico instantáneo del estado de la factura -->
+                <div id="pos_badge_estado" class="p-3.5 rounded-xl border bg-emerald-100 border-emerald-300 text-emerald-900 flex items-center justify-between">
+                    <span id="pos_texto_estado" class="font-extrabold text-xs md:text-sm">🟢 FACTURA PAGADA AL 100%</span>
+                    <span id="pos_saldo_pendiente" class="font-extrabold text-sm">Saldo Pendiente: $ 0</span>
+                </div>
+
+                <!-- Detalles opcionales (Descuento, Referencia Nequi/Banco, Nota) -->
+                <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-1">
+                    <div>
+                        <label class="block text-[11px] font-bold text-slate-600 mb-1">Descuento ($ opcional)</label>
+                        <input type="number" step="50" min="0" name="descuento" id="pos_descuento" value="0" oninput="recalcularVenta()"
+                            class="w-full px-3 py-2 rounded-lg border border-slate-300 text-xs font-bold bg-white">
+                    </div>
+                    <div>
+                        <label class="block text-[11px] font-bold text-slate-600 mb-1">Billetera / Banco</label>
+                        <input type="text" name="referencia_transferencia" placeholder="Ej: Nequi / Daviplata"
+                            class="w-full px-3 py-2 rounded-lg border border-slate-300 text-xs bg-white">
+                    </div>
+                    <div>
+                        <label class="block text-[11px] font-bold text-slate-600 mb-1">Observación</label>
+                        <input type="text" name="notas" placeholder="Nota opcional..."
+                            class="w-full px-3 py-2 rounded-lg border border-slate-300 text-xs bg-white">
+                    </div>
+                </div>
+            </div>
+
+            <button type="submit" id="btn_guardar_venta" class="w-full py-4 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-base shadow-lg shadow-emerald-600/20 transition flex items-center justify-center gap-2">
+                <span>✅ REGISTRAR VENTA Y GENERAR FACTURA</span>
+            </button>
+        </form>
+    </div>
+
+    <!-- COLUMNA DERECHA (5 COLS): HISTORIAL Y FILTRO DE FACTURAS -->
+    <div class="lg:col-span-5 bg-white rounded-2xl border border-slate-200 p-5 shadow-xs space-y-4">
+        <div class="flex flex-wrap items-center justify-between gap-2">
+            <h3 class="text-base font-extrabold text-slate-900">🧾 Facturas Emitidas</h3>
+            <div class="flex flex-wrap gap-1 text-xs">
+                <a href="/ventas?estado=TODAS" class="px-2.5 py-1 rounded-lg font-bold {% if estado_filtro == 'TODAS' %}bg-slate-900 text-white{% else %}bg-slate-100 text-slate-600{% endif %}">Todas</a>
+                <a href="/ventas?estado=PAGADO" class="px-2.5 py-1 rounded-lg font-bold {% if estado_filtro == 'PAGADO' %}bg-emerald-600 text-white{% else %}bg-emerald-50 text-emerald-700{% endif %}">🟢 Pagadas</a>
+                <a href="/ventas?estado=PARCIAL" class="px-2.5 py-1 rounded-lg font-bold {% if estado_filtro == 'PARCIAL' %}bg-amber-500 text-slate-950{% else %}bg-amber-50 text-amber-800{% endif %}">🟡 Parciales</a>
+                <a href="/ventas?estado=PENDIENTE" class="px-2.5 py-1 rounded-lg font-bold {% if estado_filtro == 'PENDIENTE' %}bg-rose-600 text-white{% else %}bg-rose-50 text-rose-700{% endif %}">🔴 Deuda</a>
+            </div>
+        </div>
+
+        <form action="/ventas" method="get" class="flex gap-2">
+            <input type="hidden" name="estado" value="{{ estado_filtro }}">
+            <input type="text" name="q" value="{{ q }}" placeholder="Buscar por factura o nombre de cliente..."
+                class="flex-1 px-3 py-2 rounded-xl border border-slate-300 text-xs">
+            <button type="submit" class="px-3.5 py-2 rounded-xl bg-slate-800 text-white text-xs font-bold">Buscar</button>
+        </form>
+
+        <div class="space-y-3 max-h-[680px] overflow-y-auto pr-1">
+            {% for v in ventas %}
+            <div class="p-3.5 rounded-xl border {% if v.estado == 'PAGADO' %}border-slate-200 bg-white{% elif v.estado == 'PARCIAL' %}border-amber-300 bg-amber-50/30{% else %}border-rose-300 bg-rose-50/30{% endif %} space-y-2">
+                <div class="flex items-start justify-between gap-2">
+                    <div>
+                        <div class="flex items-center gap-2">
+                            <a href="/ventas/{{ v.id }}" class="font-extrabold text-sm text-slate-900 hover:text-blue-600 underline">{{ v.numero_factura }}</a>
+                            {% if v.estado == 'PAGADO' %}
+                            <span class="px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 font-extrabold text-[10px]">🟢 PAGADO</span>
+                            {% elif v.estado == 'PARCIAL' %}
+                            <span class="px-2 py-0.5 rounded-full bg-amber-100 text-amber-900 font-extrabold text-[10px]">🟡 ABONO PARCIAL</span>
+                            {% else %}
+                            <span class="px-2 py-0.5 rounded-full bg-rose-100 text-rose-800 font-extrabold text-[10px]">🔴 PENDIENTE</span>
+                            {% endif %}
+                        </div>
+                        <div class="text-xs font-bold text-slate-700 mt-0.5">{{ v.cliente.nombre }}</div>
+                        <div class="text-[11px] text-slate-400">{{ v.fecha.strftime('%d/%m/%Y %H:%M') }} • {{ v.total_unidades }} snacks</div>
+                    </div>
+
+                    <div class="text-right">
+                        <div class="text-sm font-extrabold text-slate-900">{{ v.total_venta | cop }}</div>
+                        <div class="text-[11px] font-bold text-emerald-600">Ganancia: +{{ v.utilidad_bruta | cop }}</div>
+                        {% if v.saldo_pendiente > 0 %}
+                        <div class="text-xs font-extrabold text-rose-600">Debe: {{ v.saldo_pendiente | cop }}</div>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <!-- Desglose Efectivo / Transferencia y Botones -->
+                <div class="pt-2 border-t border-slate-100 flex flex-wrap items-center justify-between gap-2 text-[11px]">
+                    <div class="flex items-center gap-2 text-slate-600">
+                        <span>💵 Efec: <strong>{{ v.pagado_efectivo | cop }}</strong></span>
+                        <span>📲 Transf: <strong>{{ v.pagado_transferencia | cop }}</strong></span>
+                    </div>
+                    <div class="flex items-center gap-1.5">
+                        {% if v.saldo_pendiente > 0 %}
+                        <button type="button"
+                            onclick="abrirModalAbono('{{ v.id }}', '{{ v.numero_factura }}', '{{ v.cliente.nombre }}', '{{ v.saldo_pendiente }}')"
+                            class="px-2.5 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-bold">
+                            💰 Abonar
+                        </button>
+                        {% endif %}
+                        <a href="/ventas/{{ v.id }}" class="px-2.5 py-1 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold">Ver</a>
+                        <a href="/reportes/factura/{{ v.id }}/pdf" target="_blank" class="px-2.5 py-1 rounded-lg bg-blue-50 hover:bg-blue-100 text-blue-700 font-bold">📄 PDF</a>
+                    </div>
+                </div>
+            </div>
+            {% else %}
+            <div class="py-12 text-center text-xs text-slate-400">
+                No se encontraron facturas con este filtro.
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+
+<!-- MODAL CREAR CLIENTE RÁPIDO DESDE EL POS -->
+<div id="modalClienteRapido" class="fixed inset-0 bg-slate-900/60 hidden items-center justify-center z-50 p-4">
+    <div class="bg-white rounded-2xl shadow-2xl max-w-md w-full overflow-hidden animate-modal">
+        <div class="bg-slate-900 text-white px-6 py-4 flex items-center justify-between">
+            <h3 class="text-base font-extrabold text-amber-400">👤 Crear Nuevo Cliente Rápido</h3>
+            <button type="button" onclick="cerrarModal('modalClienteRapido')" class="text-slate-400 hover:text-white font-bold">✕</button>
+        </div>
+        <form action="/clientes/crear" method="post" class="p-6 space-y-4">
+            <input type="hidden" name="origen" value="/ventas">
+            <div>
+                <label class="block text-xs font-bold text-slate-700 mb-1">Nombre del Cliente o Tienda *</label>
+                <input type="text" name="nombre" required placeholder="Ej: Tienda Doña María" class="w-full px-3 py-2 rounded-xl border border-slate-300 text-sm font-bold">
+            </div>
+            <div class="grid grid-cols-2 gap-3">
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 mb-1">Teléfono / WhatsApp</label>
+                    <input type="text" name="telefono" placeholder="300 000 0000" class="w-full px-3 py-2 rounded-xl border border-slate-300 text-sm">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 mb-1">Tipo de Cliente</label>
+                    <select name="tipo_cliente" class="w-full px-3 py-2 rounded-xl border border-slate-300 text-sm bg-white">
+                        <option value="Frecuente">Frecuente</option>
+                        <option value="Tienda / Punto">Tienda / Punto</option>
+                        <option value="Mayorista">Mayorista</option>
+                        <option value="Detal">Detal</option>
+                    </select>
+                </div>
+            </div>
+            <div>
+                <label class="block text-xs font-bold text-slate-700 mb-1">Dirección / Barrio</label>
+                <input type="text" name="direccion" placeholder="Opcional..." class="w-full px-3 py-2 rounded-xl border border-slate-300 text-sm">
+            </div>
+            <div class="flex justify-end gap-2 pt-2">
+                <button type="button" onclick="cerrarModal('modalClienteRapido')" class="px-4 py-2 rounded-xl border border-slate-300 text-sm font-semibold">Cancelar</button>
+                <button type="submit" class="px-5 py-2 rounded-xl bg-amber-500 hover:bg-amber-600 text-slate-950 font-extrabold text-sm">Guardar Cliente</button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+let modoActualPos = "EFECTIVO";
+
+function obtenerTotalActualPos() {
+    const filas = document.querySelectorAll(".fila-producto");
+    let totalUnidades = 0;
+    let totalCosto = 0;
+    let subtotalVenta = 0;
+
+    filas.forEach((fila) => {
+        const costoUnit = Number(fila.dataset.costo) || 2700;
+        const cantInput = fila.querySelector(".input-cantidad");
+        const precioInput = fila.querySelector(".input-precio");
+        const cant = Math.max(Number(cantInput.value) || 0, 0);
+        const precio = Math.max(Number(precioInput.value) || 0, 0);
+
+        totalUnidades += cant;
+        totalCosto += cant * costoUnit;
+        subtotalVenta += cant * precio;
+    });
+
+    const descuento = Math.max(Number(document.getElementById("pos_descuento").value) || 0, 0);
+    const totalVenta = Math.max(subtotalVenta - descuento, 0);
+    const utilidad = totalVenta - totalCosto;
+
+    return { totalUnidades, totalVenta, utilidad };
+}
+
+function sumarCantidad(indice, delta) {
+    const inputs = document.querySelectorAll(".input-cantidad");
+    if (inputs[indice]) {
+        const actual = Math.max(Number(inputs[indice].value) || 0, 0);
+        inputs[indice].value = actual + delta;
+        recalcularVenta();
+    }
+}
+
+function fijarCantidad(indice, valor) {
+    const inputs = document.querySelectorAll(".input-cantidad");
+    if (inputs[indice]) {
+        inputs[indice].value = valor;
+        recalcularVenta();
+    }
+}
+
+function modoPagoPos(modo) {
+    modoActualPos = modo;
+    const { totalVenta } = obtenerTotalActualPos();
+    const efecEl = document.getElementById("pos_efectivo");
+    const transEl = document.getElementById("pos_transferencia");
+
+    if (modo === "EFECTIVO") {
+        efecEl.value = totalVenta;
+        transEl.value = 0;
+    } else if (modo === "TRANSFERENCIA") {
+        efecEl.value = 0;
+        transEl.value = totalVenta;
+    } else if (modo === "MIXTO") {
+        const mitad = Math.floor(totalVenta / 2);
+        efecEl.value = mitad;
+        transEl.value = totalVenta - mitad;
+    } else if (modo === "CREDITO") {
+        efecEl.value = 0;
+        transEl.value = 0;
+    }
+    actualizarEstadoPagoPos();
+}
+
+function recalcularVenta() {
+    const { totalUnidades, totalVenta, utilidad } = obtenerTotalActualPos();
+    document.getElementById("pos_total_unidades").textContent = totalUnidades + (totalUnidades === 1 ? " und" : " unds");
+    document.getElementById("pos_total_venta").textContent = formatCOP(totalVenta);
+    document.getElementById("pos_utilidad").textContent = (utilidad >= 0 ? "+ " : "") + formatCOP(utilidad);
+
+    // Sincronizar monto según botón rápido activo
+    modoPagoPos(modoActualPos);
+}
+
+function actualizarEstadoPagoPos() {
+    const { totalUnidades, totalVenta } = obtenerTotalActualPos();
+    const efec = Math.max(Number(document.getElementById("pos_efectivo").value) || 0, 0);
+    const trans = Math.max(Number(document.getElementById("pos_transferencia").value) || 0, 0);
+    const pagado = efec + trans;
+    const saldo = totalVenta - pagado;
+
+    const badge = document.getElementById("pos_badge_estado");
+    const texto = document.getElementById("pos_texto_estado");
+    const saldoEl = document.getElementById("pos_saldo_pendiente");
+    const btnGuardar = document.getElementById("btn_guardar_venta");
+
+    if (totalUnidades <= 0) {
+        badge.className = "p-3.5 rounded-xl border bg-slate-100 border-slate-300 text-slate-600 flex items-center justify-between";
+        texto.textContent = "⚪ Selecciona al menos 1 unidad de snack";
+        saldoEl.textContent = "$ 0";
+        btnGuardar.disabled = true;
+        btnGuardar.classList.add("opacity-50", "cursor-not-allowed");
+        return;
+    }
+
+    if (pagado > totalVenta) {
+        badge.className = "p-3.5 rounded-xl border bg-rose-100 border-rose-400 text-rose-900 flex items-center justify-between";
+        texto.textContent = "❌ El pago supera el total de la venta";
+        saldoEl.textContent = "Exceso: " + formatCOP(pagado - totalVenta);
+        btnGuardar.disabled = true;
+        btnGuardar.classList.add("opacity-50", "cursor-not-allowed");
+        return;
+    }
+
+    btnGuardar.disabled = false;
+    btnGuardar.classList.remove("opacity-50", "cursor-not-allowed");
+
+    if (saldo === 0) {
+        badge.className = "p-3.5 rounded-xl border bg-emerald-100 border-emerald-300 text-emerald-900 flex items-center justify-between";
+        texto.textContent = "🟢 FACTURA PAGADA AL 100%";
+        saldoEl.textContent = "Saldo Pendiente: $ 0";
+    } else if (pagado > 0) {
+        badge.className = "p-3.5 rounded-xl border bg-amber-100 border-amber-300 text-amber-900 flex items-center justify-between";
+        texto.textContent = "🟡 ABONO PARCIAL (El resto pasa a Cartera)";
+        saldoEl.textContent = "Queda debiendo: " + formatCOP(saldo);
+    } else {
+        badge.className = "p-3.5 rounded-xl border bg-rose-100 border-rose-300 text-rose-900 flex items-center justify-between";
+        texto.textContent = "🔴 VENTA A CRÉDITO / FIADO (Pasa a Cartera)";
+        saldoEl.textContent = "Deuda Total: " + formatCOP(saldo);
+    }
+}
+
+document.addEventListener("DOMContentLoaded", () => {
+    recalcularVenta();
+});
+</script>
+{% endblock %}

@@ -1,0 +1,412 @@
+{% extends "base.html" %}
+
+{% block title %}Panel de Capital - {{ settings.BUSINESS_NAME }}{% endblock %}
+{% block page_header %}Radiografía de Capital y Utilidades{% endblock %}
+{% block page_subtitle %}Estado financiero en tiempo real: Efectivo, Transferencias, Cartera en la calle e Inventario de Snacks{% endblock %}
+
+{% block content %}
+<!-- BANNER EJECUTIVO DE PATRIMONIO Y ACCIONES RÁPIDAS -->
+<div class="bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 rounded-2xl p-6 text-white shadow-lg flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
+    <div class="space-y-1">
+        <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-amber-500/20 border border-amber-400/30 text-amber-300 text-xs font-bold">
+            <span>🥔 Modelo Comercial:</span>
+            <span>Compra $ 2.700 ➔ Venta $ 4.000 (+ $ 1.300 ganancia/und)</span>
+        </div>
+        <h2 class="text-xs uppercase tracking-wider text-slate-400 font-bold pt-1">Patrimonio / Capital Total del Negocio (Liquidez + Cartera + Stock al Costo)</h2>
+        <div class="text-3xl md:text-4xl font-extrabold text-white tracking-tight">
+            {{ resumen.patrimonio_total | cop }}
+        </div>
+        <p class="text-xs text-slate-300">
+            Ventas acumuladas: <strong class="text-emerald-400">{{ resumen.ventas_totales | cop }}</strong> ({{ resumen.unidades_vendidas }} snacks vendidos)
+        </p>
+    </div>
+
+    <div class="flex flex-wrap gap-2.5">
+        <button onclick="abrirModal('modalCapital')" class="px-4 py-3 rounded-xl bg-slate-700 hover:bg-slate-600 text-white font-bold text-xs md:text-sm border border-slate-600 transition flex items-center gap-2">
+            <span>🏦 Ajustar Caja / Traspaso</span>
+        </button>
+        <button onclick="abrirModal('modalGastoRapido')" class="px-4 py-3 rounded-xl bg-rose-600/90 hover:bg-rose-600 text-white font-bold text-xs md:text-sm shadow transition flex items-center gap-2">
+            <span>💸 Registrar Gasto</span>
+        </button>
+        <a href="/ventas" class="px-5 py-3 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-extrabold text-xs md:text-sm shadow-lg shadow-emerald-500/20 transition flex items-center gap-2">
+            <span>🛒 Vender Snacks Ahora</span>
+        </a>
+    </div>
+</div>
+
+<!-- 4 TARJETAS KPI PRINCIPALES (COLORES SEMÁNTICOS) -->
+<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+    <!-- 1. Liquidez Total (Efectivo + Transferencia) -->
+    <div class="bg-white rounded-2xl p-5 border border-emerald-200 shadow-xs flex flex-col justify-between">
+        <div>
+            <div class="flex items-center justify-between mb-2">
+                <span class="text-xs font-extrabold uppercase tracking-wider text-emerald-700">1. Dinero Disponible Hoy</span>
+                <span class="px-2.5 py-1 rounded-lg bg-emerald-100 text-emerald-800 text-xs font-bold">Caja + Bancos</span>
+            </div>
+            <div class="text-2xl font-extrabold text-slate-900">{{ resumen.liquidez_total | cop }}</div>
+        </div>
+        <div class="mt-4 pt-3 border-t border-slate-100 space-y-1.5 text-xs">
+            <div class="flex justify-between items-center">
+                <span class="text-slate-600 font-medium">💵 En Efectivo (Caja):</span>
+                <span class="font-extrabold text-emerald-700">{{ resumen.caja_efectivo | cop }}</span>
+            </div>
+            <div class="flex justify-between items-center">
+                <span class="text-slate-600 font-medium">📲 En Transferencias:</span>
+                <span class="font-extrabold text-blue-700">{{ resumen.bancos_transferencia | cop }}</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- 2. Capital en la Calle (Cartera por Cobrar) -->
+    <div class="bg-white rounded-2xl p-5 border {% if resumen.capital_en_la_calle > 0 %}border-rose-300 bg-rose-50/20{% else %}border-slate-200{% endif %} shadow-xs flex flex-col justify-between">
+        <div>
+            <div class="flex items-center justify-between mb-2">
+                <span class="text-xs font-extrabold uppercase tracking-wider text-rose-700">2. Capital en la Calle</span>
+                <span class="px-2.5 py-1 rounded-lg {% if resumen.capital_en_la_calle > 0 %}bg-rose-100 text-rose-800{% else %}bg-emerald-100 text-emerald-800{% endif %} text-xs font-bold">
+                    {% if resumen.capital_en_la_calle > 0 %}Por Cobrar{% else %}Al Día{% endif %}
+                </span>
+            </div>
+            <div class="text-2xl font-extrabold {% if resumen.capital_en_la_calle > 0 %}text-rose-600{% else %}text-slate-900{% endif %}">
+                {{ resumen.capital_en_la_calle | cop }}
+            </div>
+        </div>
+        <div class="mt-4 pt-3 border-t border-slate-100 space-y-1.5 text-xs">
+            <div class="flex justify-between">
+                <span class="text-slate-600">🟡 Con abono parcial:</span>
+                <span class="font-bold text-amber-700">{{ resumen.facturas_parciales }} facturas</span>
+            </div>
+            <div class="flex justify-between">
+                <span class="text-slate-600">🔴 Pendientes sin abono:</span>
+                <span class="font-bold text-rose-700">{{ resumen.facturas_pendientes }} facturas</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- 3. Capital en Inventario (Snacks) -->
+    <div class="bg-white rounded-2xl p-5 border border-amber-200 shadow-xs flex flex-col justify-between">
+        <div>
+            <div class="flex items-center justify-between mb-2">
+                <span class="text-xs font-extrabold uppercase tracking-wider text-amber-700">3. Capital en Inventario</span>
+                <span class="px-2.5 py-1 rounded-lg bg-amber-100 text-amber-900 text-xs font-bold">{{ resumen.stock_total_unidades }} unds</span>
+            </div>
+            <div class="text-2xl font-extrabold text-slate-900">{{ resumen.capital_inventario_costo | cop }}</div>
+            <span class="text-[11px] text-slate-400">Valorizado al costo ($ 2.700/und)</span>
+        </div>
+        <div class="mt-3 pt-3 border-t border-slate-100 space-y-1.5 text-xs">
+            <div class="flex justify-between">
+                <span class="text-slate-600">Valor al venderse ($4.000):</span>
+                <span class="font-bold text-slate-900">{{ resumen.capital_inventario_venta | cop }}</span>
+            </div>
+            <div class="flex justify-between">
+                <span class="text-slate-600">Ganancia en bodega:</span>
+                <span class="font-extrabold text-emerald-600">+ {{ resumen.utilidad_potencial_inventario | cop }}</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- 4. Utilidades y Ganancia Real -->
+    <div class="bg-white rounded-2xl p-5 border border-indigo-200 shadow-xs flex flex-col justify-between">
+        <div>
+            <div class="flex items-center justify-between mb-2">
+                <span class="text-xs font-extrabold uppercase tracking-wider text-indigo-700">4. Utilidad Neta Real</span>
+                <span class="px-2.5 py-1 rounded-lg bg-emerald-100 text-emerald-800 text-xs font-bold">Margen {{ resumen.margen_bruto_pct }}%</span>
+            </div>
+            <div class="text-2xl font-extrabold {% if resumen.utilidad_neta >= 0 %}text-emerald-600{% else %}text-rose-600{% endif %}">
+                {{ resumen.utilidad_neta | cop }}
+            </div>
+        </div>
+        <div class="mt-4 pt-3 border-t border-slate-100 space-y-1.5 text-xs">
+            <div class="flex justify-between">
+                <span class="text-slate-600">Utilidad Bruta Ventas:</span>
+                <span class="font-bold text-emerald-700">+ {{ resumen.utilidad_bruta_ventas | cop }}</span>
+            </div>
+            <div class="flex justify-between">
+                <span class="text-slate-600">Gastos Operativos:</span>
+                <span class="font-bold text-rose-600">- {{ resumen.gastos_operativos | cop }}</span>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ALERTAS DE BAJO STOCK SI EXISTEN -->
+{% if resumen.productos_bajo_stock %}
+<div class="bg-amber-50 border border-amber-300 rounded-2xl p-4 flex flex-wrap items-center justify-between gap-4">
+    <div class="flex items-center gap-3">
+        <span class="text-2xl">⚠️</span>
+        <div>
+            <h4 class="text-sm font-extrabold text-amber-900">Alerta de Stock Bajo en Bodega</h4>
+            <p class="text-xs text-amber-800">
+                {% for p in resumen.productos_bajo_stock %}
+                    <span class="inline-block mr-2">• <strong>{{ p.nombre }}</strong> ({{ p.stock_actual }} unds)</span>
+                {% endfor %}
+            </p>
+        </div>
+    </div>
+    <a href="/inventario" class="px-4 py-2 rounded-xl bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold text-xs">
+        Abastecer Inventario ➔
+    </a>
+</div>
+{% endif %}
+
+<!-- SECCIÓN MEDIA: GRÁFICA DE FLUJO 7 DÍAS + COBROS RÁPIDOS DE CARTERA -->
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+    <!-- Gráfica últimos 7 días -->
+    <div class="lg:col-span-2 bg-white rounded-2xl border border-slate-200 p-5 shadow-xs flex flex-col justify-between">
+        <div class="flex flex-wrap items-center justify-between gap-2 mb-4">
+            <div>
+                <h3 class="text-base font-extrabold text-slate-900">📊 Comportamiento de Ventas y Ganancias (Últimos 7 Días)</h3>
+                <p class="text-xs text-slate-500">Cada barra muestra el monto vendido y la ganancia generada</p>
+            </div>
+            <div class="flex items-center gap-3 text-xs font-semibold">
+                <span class="flex items-center gap-1 text-emerald-700"><span class="w-3 h-3 rounded-xs bg-emerald-500 inline-block"></span> Ventas</span>
+                <span class="flex items-center gap-1 text-amber-700"><span class="w-3 h-3 rounded-xs bg-amber-400 inline-block"></span> Ganancia</span>
+            </div>
+        </div>
+
+        <div class="grid grid-cols-7 gap-2 items-end h-44 pt-6 px-2 border-b border-slate-200">
+            {% for d in resumen.serie_diaria %}
+            <div class="flex flex-col items-center h-full justify-end group">
+                <div class="text-[10px] font-bold text-slate-600 mb-1 text-center">
+                    {% if d.ventas > 0 %}{{ d.ventas | cop }}{% else %}$0{% endif %}
+                </div>
+                <div class="w-full max-w-[42px] bg-emerald-500 hover:bg-emerald-600 rounded-t-lg transition-all relative flex items-end justify-center overflow-hidden" style="height: {{ d.altura_pct }}%;">
+                    {% if d.utilidad > 0 %}
+                    <div class="w-full bg-amber-400/90 h-1/3" title="Utilidad: {{ d.utilidad | cop }}"></div>
+                    {% endif %}
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        <div class="grid grid-cols-7 gap-2 pt-2 text-center">
+            {% for d in resumen.serie_diaria %}
+            <div>
+                <div class="text-xs font-bold text-slate-700">{{ d.etiqueta }}</div>
+                <div class="text-[10px] text-slate-400">{{ d.unidades }} unds</div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+
+    <!-- Cobranza Rápida de Facturas Pendientes -->
+    <div class="bg-white rounded-2xl border border-slate-200 p-5 shadow-xs flex flex-col justify-between">
+        <div>
+            <div class="flex items-center justify-between mb-3">
+                <h3 class="text-base font-extrabold text-slate-900">⚡ Cobro Rápido (1 Clic)</h3>
+                <a href="/cartera" class="text-xs font-bold text-blue-600 hover:underline">Ver todas ➔</a>
+            </div>
+
+            {% if facturas_por_cobrar %}
+            <div class="space-y-2.5">
+                {% for f in facturas_por_cobrar %}
+                <div class="p-3 rounded-xl border {% if f.estado == 'PARCIAL' %}border-amber-200 bg-amber-50/40{% else %}border-rose-200 bg-rose-50/40{% endif %} flex items-center justify-between gap-2">
+                    <div class="min-w-0">
+                        <div class="flex items-center gap-1.5">
+                            <span class="text-xs font-extrabold text-slate-900">{{ f.numero_factura }}</span>
+                            <span class="px-2 py-0.5 rounded-full text-[10px] font-extrabold {% if f.estado == 'PARCIAL' %}bg-amber-200 text-amber-900{% else %}bg-rose-200 text-rose-900{% endif %}">
+                                {{ f.estado }}
+                            </span>
+                        </div>
+                        <div class="text-xs font-semibold text-slate-700 truncate">{{ f.cliente.nombre }}</div>
+                        <div class="text-xs font-extrabold text-rose-600">Debe: {{ f.saldo_pendiente | cop }}</div>
+                    </div>
+                    <button type="button"
+                        onclick="abrirModalAbono('{{ f.id }}', '{{ f.numero_factura }}', '{{ f.cliente.nombre }}', '{{ f.saldo_pendiente }}')"
+                        class="px-3 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs shrink-0 shadow-xs transition">
+                        💰 Cobrar
+                    </button>
+                </div>
+                {% endfor %}
+            </div>
+            {% else %}
+            <div class="py-12 text-center space-y-2">
+                <div class="text-3xl">🎉</div>
+                <div class="text-sm font-bold text-emerald-700">¡Excelente! No hay deudas pendientes</div>
+                <p class="text-xs text-slate-500">Todas las facturas están pagadas al 100%.</p>
+            </div>
+            {% endif %}
+        </div>
+
+        <div class="mt-4 pt-3 border-t border-slate-100 flex justify-between items-center text-xs">
+            <span class="text-slate-500 font-medium">Utilidad pendiente por recaudar:</span>
+            <span class="font-extrabold text-amber-700">{{ resumen.utilidad_por_cobrar | cop }}</span>
+        </div>
+    </div>
+</div>
+
+<!-- ÚLTIMAS VENTAS Y ÚLTIMOS MOVIMIENTOS DE CAJA/TRANSFERENCIA -->
+<div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+    <!-- Últimas Ventas -->
+    <div class="bg-white rounded-2xl border border-slate-200 p-5 shadow-xs">
+        <div class="flex items-center justify-between mb-4">
+            <h3 class="text-base font-extrabold text-slate-900">🧾 Últimas Ventas Registradas</h3>
+            <a href="/ventas" class="text-xs font-bold text-blue-600 hover:underline">Ir a Ventas ➔</a>
+        </div>
+        {% if ultimas_ventas %}
+        <div class="overflow-x-auto">
+            <table class="w-full text-left border-collapse text-xs">
+                <thead>
+                    <tr class="border-b border-slate-200 text-slate-500 uppercase">
+                        <th class="py-2.5 pr-2">Factura</th>
+                        <th class="py-2.5 px-2">Cliente</th>
+                        <th class="py-2.5 px-2 text-right">Total</th>
+                        <th class="py-2.5 px-2 text-center">Estado</th>
+                        <th class="py-2.5 pl-2 text-right">Acción</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-100">
+                    {% for v in ultimas_ventas %}
+                    <tr class="hover:bg-slate-50">
+                        <td class="py-2.5 pr-2 font-bold text-slate-900">
+                            <a href="/ventas/{{ v.id }}" class="hover:text-blue-600 underline">{{ v.numero_factura }}</a>
+                            <span class="block text-[10px] text-slate-400 font-normal">{{ v.total_unidades }} snacks</span>
+                        </td>
+                        <td class="py-2.5 px-2 font-medium text-slate-700">{{ v.cliente.nombre }}</td>
+                        <td class="py-2.5 px-2 text-right font-extrabold text-slate-900">
+                            {{ v.total_venta | cop }}
+                            <span class="block text-[10px] text-emerald-600 font-semibold">Ganancia: +{{ v.utilidad_bruta | cop }}</span>
+                        </td>
+                        <td class="py-2.5 px-2 text-center">
+                            {% if v.estado == 'PAGADO' %}
+                            <span class="px-2.5 py-1 rounded-full bg-emerald-100 text-emerald-800 font-extrabold text-[10px]">🟢 PAGADO</span>
+                            {% elif v.estado == 'PARCIAL' %}
+                            <span class="px-2.5 py-1 rounded-full bg-amber-100 text-amber-800 font-extrabold text-[10px]">🟡 PARCIAL</span>
+                            {% else %}
+                            <span class="px-2.5 py-1 rounded-full bg-rose-100 text-rose-800 font-extrabold text-[10px]">🔴 DEUDA</span>
+                            {% endif %}
+                        </td>
+                        <td class="py-2.5 pl-2 text-right">
+                            <a href="/reportes/factura/{{ v.id }}/pdf" target="_blank" class="px-2.5 py-1 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold">
+                                📄 PDF
+                            </a>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <p class="text-xs text-slate-500 py-8 text-center">Aún no se han registrado ventas. ¡Haz clic en "Vender Snacks Ahora" para empezar!</p>
+        {% endif %}
+    </div>
+
+    <!-- Últimos Movimientos de Caja y Transferencias -->
+    <div class="bg-white rounded-2xl border border-slate-200 p-5 shadow-xs">
+        <div class="flex items-center justify-between mb-4">
+            <h3 class="text-base font-extrabold text-slate-900">🏦 Flujo Reciente (Efectivo y Transferencias)</h3>
+            <a href="/reportes" class="text-xs font-bold text-blue-600 hover:underline">Historial completo ➔</a>
+        </div>
+        {% if ultimas_transacciones %}
+        <div class="space-y-2.5">
+            {% for tx in ultimas_transacciones %}
+            <div class="p-3 rounded-xl border border-slate-100 bg-slate-50/70 flex items-center justify-between gap-3 text-xs">
+                <div class="min-w-0">
+                    <div class="font-bold text-slate-800 truncate">{{ tx.concepto }}</div>
+                    <div class="text-[11px] text-slate-500 flex flex-wrap items-center gap-2 mt-0.5">
+                        <span>{{ tx.fecha.strftime('%d/%m %H:%M') }}</span>
+                        <span class="px-2 py-0.5 rounded bg-slate-200 text-slate-700 font-semibold">{{ tx.canal }}</span>
+                        {% if tx.monto_efectivo > 0 %}
+                        <span class="text-emerald-700 font-semibold">💵 Efec: {{ tx.monto_efectivo | cop }}</span>
+                        {% endif %}
+                        {% if tx.monto_transferencia > 0 %}
+                        <span class="text-blue-700 font-semibold">📲 Transf: {{ tx.monto_transferencia | cop }}</span>
+                        {% endif %}
+                    </div>
+                </div>
+                <div class="text-right shrink-0">
+                    <span class="font-extrabold text-sm {% if tx.es_egreso %}text-rose-600{% else %}text-emerald-600{% endif %}">
+                        {% if tx.es_egreso %}-{% else %}+{% endif %} {{ tx.monto_total | cop }}
+                    </span>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <p class="text-xs text-slate-500 py-8 text-center">Sin movimientos de caja o transferencias registrados aún.</p>
+        {% endif %}
+    </div>
+</div>
+
+<!-- MODAL: INYECTAR CAPITAL BASE O TRASPASAR ENTRE EFECTIVO Y TRANSFERENCIA -->
+<div id="modalCapital" class="fixed inset-0 bg-slate-900/60 hidden items-center justify-center z-50 p-4">
+    <div class="bg-white rounded-2xl shadow-2xl max-w-md w-full overflow-hidden animate-modal">
+        <div class="bg-slate-900 text-white px-6 py-4 flex items-center justify-between">
+            <h3 class="text-base font-extrabold text-amber-400">🏦 Ajustar Caja / Traspaso entre Cuentas</h3>
+            <button type="button" onclick="cerrarModal('modalCapital')" class="text-slate-400 hover:text-white font-bold">✕</button>
+        </div>
+        <form action="/capital/movimiento" method="post" class="p-6 space-y-4">
+            <div>
+                <label class="block text-xs font-bold text-slate-700 mb-1">¿Qué movimiento deseas hacer?</label>
+                <select name="tipo" class="w-full px-3 py-2.5 rounded-xl border border-slate-300 text-sm font-semibold bg-white">
+                    <option value="APORTE_CAPITAL">➕ Ingresar Capital Base / Saldo Inicial</option>
+                    <option value="TRASPASO_CAJA_A_BANCO">🔄 Consignar de Efectivo ➔ a Transferencia (Nequi/Banco)</option>
+                    <option value="TRASPASO_BANCO_A_CAJA">🔄 Retirar de Transferencia (Nequi/Banco) ➔ a Efectivo</option>
+                </select>
+            </div>
+            <div class="grid grid-cols-2 gap-3">
+                <div>
+                    <label class="block text-xs font-bold text-emerald-700 mb-1">💵 Monto Efectivo ($)</label>
+                    <input type="number" step="100" min="0" name="monto_efectivo" value="0" class="w-full px-3 py-2 rounded-xl border border-slate-300 font-bold">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-blue-700 mb-1">📲 Monto Transferencia ($)</label>
+                    <input type="number" step="100" min="0" name="monto_transferencia" value="0" class="w-full px-3 py-2 rounded-xl border border-slate-300 font-bold">
+                </div>
+            </div>
+            <div>
+                <label class="block text-xs font-bold text-slate-700 mb-1">Descripción / Nota</label>
+                <input type="text" name="concepto" required placeholder="Ej: Base de caja inicial / Paso de efectivo a Nequi" class="w-full px-3 py-2 rounded-xl border border-slate-300 text-sm">
+            </div>
+            <div class="flex justify-end gap-2 pt-2">
+                <button type="button" onclick="cerrarModal('modalCapital')" class="px-4 py-2 rounded-xl border border-slate-300 text-sm font-semibold">Cancelar</button>
+                <button type="submit" class="px-5 py-2 rounded-xl bg-amber-500 hover:bg-amber-600 text-slate-950 font-extrabold text-sm">Guardar Movimiento</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- MODAL: REGISTRAR GASTO OPERATIVO RÁPIDO -->
+<div id="modalGastoRapido" class="fixed inset-0 bg-slate-900/60 hidden items-center justify-center z-50 p-4">
+    <div class="bg-white rounded-2xl shadow-2xl max-w-md w-full overflow-hidden animate-modal">
+        <div class="bg-rose-700 text-white px-6 py-4 flex items-center justify-between">
+            <h3 class="text-base font-extrabold">💸 Registrar Gasto Operativo</h3>
+            <button type="button" onclick="cerrarModal('modalGastoRapido')" class="text-rose-200 hover:text-white font-bold">✕</button>
+        </div>
+        <form action="/capital/gasto" method="post" class="p-6 space-y-4">
+            <input type="hidden" name="origen" value="/">
+            <div>
+                <label class="block text-xs font-bold text-slate-700 mb-1">Categoría del Gasto</label>
+                <select name="categoria" class="w-full px-3 py-2.5 rounded-xl border border-slate-300 text-sm font-semibold bg-white">
+                    <option value="FLETE_TRANSPORTE">🚚 Transporte / Domicilio / Gasolina</option>
+                    <option value="EMPAQUES_BOLSAS">🛍️ Bolsas / Empaques / Cintas</option>
+                    <option value="CAJA_MENOR">☕ Caja Menor / Varios</option>
+                    <option value="SERVICIOS_OPERACION">📱 Celular / Datos / Servicios</option>
+                </select>
+            </div>
+            <div>
+                <label class="block text-xs font-bold text-slate-700 mb-1">Descripción del gasto</label>
+                <input type="text" name="descripcion" required placeholder="Ej: Transporte entrega de pedido..." class="w-full px-3 py-2 rounded-xl border border-slate-300 text-sm">
+            </div>
+            <div>
+                <label class="block text-xs font-bold text-slate-700 mb-1">Valor Total del Gasto ($)</label>
+                <input type="number" step="100" min="100" name="monto_total" id="gasto_rapido_total" required
+                    oninput="document.getElementById('gasto_rapido_efec').value = this.value"
+                    placeholder="Ej: 10000" class="w-full px-3 py-2 rounded-xl border border-slate-300 font-extrabold text-base">
+            </div>
+            <div class="grid grid-cols-2 gap-3">
+                <div>
+                    <label class="block text-xs font-bold text-emerald-700 mb-1">💵 Pagado en Efectivo</label>
+                    <input type="number" step="100" min="0" name="pagado_efectivo" id="gasto_rapido_efec" value="0" class="w-full px-3 py-2 rounded-xl border border-slate-300 font-bold">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-blue-700 mb-1">📲 Pagado Transferencia</label>
+                    <input type="number" step="100" min="0" name="pagado_transferencia" value="0" class="w-full px-3 py-2 rounded-xl border border-slate-300 font-bold">
+                </div>
+            </div>
+            <div class="flex justify-end gap-2 pt-2">
+                <button type="button" onclick="cerrarModal('modalGastoRapido')" class="px-4 py-2 rounded-xl border border-slate-300 text-sm font-semibold">Cancelar</button>
+                <button type="submit" class="px-5 py-2 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-extrabold text-sm">Registrar Gasto</button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

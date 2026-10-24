@@ -1,0 +1,162 @@
+{% extends "base.html" %}
+
+{% block title %}Cartera y Cobranza Rápida - {{ settings.BUSINESS_NAME }}{% endblock %}
+{% block page_header %}Control de Cartera (Capital en la Calle){% endblock %}
+{% block page_subtitle %}Gestiona cobros pendientes, registra abonos en Efectivo o Transferencia y descarga recibos de pago{% endblock %}
+
+{% block content %}
+<!-- KPIs DE CARTERA -->
+<div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+    <div class="bg-white rounded-2xl p-5 border border-rose-200 shadow-xs">
+        <span class="text-xs font-extrabold uppercase tracking-wider text-rose-700 block">🔴 Total Capital en la Calle (Por Cobrar)</span>
+        <span class="text-3xl font-extrabold text-rose-600 mt-1 block">{{ resumen.capital_en_la_calle | cop }}</span>
+        <span class="text-xs text-slate-500 mt-1 block">En {{ facturas_pendientes | length }} facturas con saldo pendiente</span>
+    </div>
+
+    <div class="bg-white rounded-2xl p-5 border border-amber-200 shadow-xs">
+        <span class="text-xs font-extrabold uppercase tracking-wider text-amber-700 block">📈 Ganancia Contenida en Cartera</span>
+        <span class="text-3xl font-extrabold text-amber-600 mt-1 block">{{ resumen.utilidad_por_cobrar | cop }}</span>
+        <span class="text-xs text-slate-500 mt-1 block">Utilidad que entrará a caja al cobrar estas cuentas</span>
+    </div>
+
+    <div class="bg-white rounded-2xl p-5 border border-emerald-200 shadow-xs">
+        <span class="text-xs font-extrabold uppercase tracking-wider text-emerald-700 block">🟢 Total Ya Recaudado en Ventas</span>
+        <span class="text-3xl font-extrabold text-emerald-600 mt-1 block">{{ resumen.recaudo_total_ventas | cop }}</span>
+        <span class="text-xs text-slate-500 mt-1 block">Efectivo + Transferencias ya recibidas</span>
+    </div>
+</div>
+
+<!-- TABLA PRINCIPAL DE FACTURAS POR COBRAR -->
+<div class="bg-white rounded-2xl border border-slate-200 p-5 shadow-xs space-y-4">
+    <div class="flex flex-wrap items-center justify-between gap-3">
+        <div>
+            <h2 class="text-base font-extrabold text-slate-900">📋 Facturas Pendientes de Cobro</h2>
+            <p class="text-xs text-slate-500">Haz clic en <strong>"💰 Registrar Abono"</strong> para recibir pagos totales o parciales en Efectivo o Transferencia</p>
+        </div>
+        <form action="/cartera" method="get" class="flex gap-2">
+            <input type="text" name="q" value="{{ q }}" placeholder="Buscar cliente o factura..." class="px-3 py-2 rounded-xl border border-slate-300 text-xs">
+            <button type="submit" class="px-3.5 py-2 rounded-xl bg-slate-900 text-white text-xs font-bold">Filtrar</button>
+        </form>
+    </div>
+
+    {% if facturas_pendientes %}
+    <div class="overflow-x-auto">
+        <table class="w-full text-left border-collapse text-xs md:text-sm">
+            <thead>
+                <tr class="bg-slate-900 text-white">
+                    <th class="py-3 px-3 rounded-tl-xl">Factura / Fecha</th>
+                    <th class="py-3 px-3">Cliente</th>
+                    <th class="py-3 px-3 text-right">Total Factura</th>
+                    <th class="py-3 px-3 text-right">Ya Abonado</th>
+                    <th class="py-3 px-3 text-right">Saldo Pendiente</th>
+                    <th class="py-3 px-3 text-center">Estado</th>
+                    <th class="py-3 px-3 text-right rounded-tr-xl">Acciones</th>
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-200">
+                {% for f in facturas_pendientes %}
+                <tr class="hover:bg-slate-50">
+                    <td class="py-3 px-3">
+                        <a href="/ventas/{{ f.id }}" class="font-extrabold text-slate-900 hover:text-blue-600 underline">{{ f.numero_factura }}</a>
+                        <span class="block text-[11px] text-slate-400">{{ f.fecha.strftime('%d/%m/%Y') }} ({{ f.total_unidades }} unds)</span>
+                    </td>
+                    <td class="py-3 px-3">
+                        <div class="font-bold text-slate-800">{{ f.cliente.nombre }}</div>
+                        {% if f.cliente.telefono %}
+                        <div class="text-[11px] text-slate-500">📞 {{ f.cliente.telefono }}</div>
+                        {% endif %}
+                    </td>
+                    <td class="py-3 px-3 text-right font-bold text-slate-700">{{ f.total_venta | cop }}</td>
+                    <td class="py-3 px-3 text-right">
+                        <span class="font-bold text-emerald-700">{{ f.monto_pagado | cop }}</span>
+                        <div class="w-24 ml-auto bg-slate-200 h-1.5 rounded-full overflow-hidden mt-1">
+                            <div class="bg-emerald-500 h-full" style="width: {{ f.porcentaje_pagado }}%;"></div>
+                        </div>
+                    </td>
+                    <td class="py-3 px-3 text-right font-extrabold text-rose-600 text-base">{{ f.saldo_pendiente | cop }}</td>
+                    <td class="py-3 px-3 text-center">
+                        {% if f.estado == 'PARCIAL' %}
+                        <span class="px-2.5 py-1 rounded-full bg-amber-100 text-amber-900 font-extrabold text-[11px]">🟡 ABONO PARCIAL</span>
+                        {% else %}
+                        <span class="px-2.5 py-1 rounded-full bg-rose-100 text-rose-800 font-extrabold text-[11px]">🔴 SIN ABONO</span>
+                        {% endif %}
+                    </td>
+                    <td class="py-3 px-3 text-right">
+                        <div class="flex items-center justify-end gap-1.5">
+                            <button type="button"
+                                onclick="abrirModalAbono('{{ f.id }}', '{{ f.numero_factura }}', '{{ f.cliente.nombre }}', '{{ f.saldo_pendiente }}')"
+                                class="px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs shadow-xs transition">
+                                💰 Registrar Abono
+                            </button>
+                            <a href="/reportes/factura/{{ f.id }}/pdf" target="_blank" class="px-2.5 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs" title="Descargar Factura PDF">
+                                📄 PDF
+                            </a>
+                        </div>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <div class="py-12 text-center space-y-2">
+        <div class="text-4xl">🎉</div>
+        <h3 class="text-base font-extrabold text-emerald-700">¡Cartera Limpia! No tienes cuentas por cobrar pendientes</h3>
+        <p class="text-xs text-slate-500">Todos tus clientes están al día con sus pagos.</p>
+    </div>
+    {% endif %}
+</div>
+
+<!-- RESUMEN POR CLIENTE DEUDOR + HISTORIAL DE RECIBOS DE ABONO -->
+<div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+    <!-- Clientes con Deuda Acumulada -->
+    <div class="bg-white rounded-2xl border border-slate-200 p-5 shadow-xs">
+        <h3 class="text-base font-extrabold text-slate-900 mb-3">👥 Saldo Acumulado por Cliente</h3>
+        {% if clientes_con_deuda %}
+        <div class="space-y-2.5">
+            {% for c in clientes_con_deuda %}
+            <div class="p-3.5 rounded-xl border border-rose-100 bg-rose-50/30 flex items-center justify-between">
+                <div>
+                    <div class="font-extrabold text-sm text-slate-900">{{ c.nombre }}</div>
+                    <div class="text-xs text-slate-500">{{ c.facturas_pendientes_count }} factura(s) pendiente(s) {% if c.telefono %}• Tel: {{ c.telefono }}{% endif %}</div>
+                </div>
+                <div class="text-right">
+                    <span class="text-base font-extrabold text-rose-600">{{ c.deuda_total | cop }}</span>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <p class="text-xs text-slate-400 py-6 text-center">Ningún cliente presenta deuda activa.</p>
+        {% endif %}
+    </div>
+
+    <!-- Últimos Abonos Recibidos con Descarga de Recibo PDF -->
+    <div class="bg-white rounded-2xl border border-slate-200 p-5 shadow-xs">
+        <h3 class="text-base font-extrabold text-slate-900 mb-3">🧾 Últimos Abonos Recibidos (Recibos de Caja)</h3>
+        {% if abonos_recientes %}
+        <div class="space-y-2.5">
+            {% for a in abonos_recientes %}
+            <div class="p-3 rounded-xl border border-slate-100 bg-slate-50 flex items-center justify-between gap-2 text-xs">
+                <div class="min-w-0">
+                    <div class="font-extrabold text-slate-900">{{ a.codigo_recibo or a.id }} — {{ a.concepto }}</div>
+                    <div class="text-[11px] text-slate-500 mt-0.5">
+                        {{ a.fecha.strftime('%d/%m/%Y %H:%M') }} | Canal: <strong>{{ a.canal }}</strong>
+                        (💵 {{ a.monto_efectivo | cop }} / 📲 {{ a.monto_transferencia | cop }})
+                    </div>
+                </div>
+                <div class="flex items-center gap-2 shrink-0">
+                    <span class="font-extrabold text-emerald-600 text-sm">+ {{ a.monto_total | cop }}</span>
+                    <a href="/reportes/recibo/{{ a.id }}/pdf" target="_blank" class="px-2.5 py-1.5 rounded-lg bg-blue-50 hover:bg-blue-100 text-blue-700 font-bold">
+                        📄 Recibo
+                    </a>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <p class="text-xs text-slate-400 py-6 text-center">Aún no se han registrado abonos posteriores a la venta.</p>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

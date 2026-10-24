@@ -1,0 +1,316 @@
+{% extends "base.html" %}
+
+{% block title %}Inventario de Snacks - {{ settings.BUSINESS_NAME }}{% endblock %}
+{% block page_header %}Inventario de Snacks y Compras a Proveedor{% endblock %}
+{% block page_subtitle %}Controla tus unidades en stock, costo de compra ($ 2.700), precio de venta ($ 4.000) y entradas de mercancía{% endblock %}
+
+{% block content %}
+<!-- TARJETAS RESUMEN DE INVENTARIO -->
+<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+    <div class="bg-white rounded-2xl p-5 border border-slate-200 shadow-xs">
+        <span class="text-xs font-extrabold uppercase text-slate-500 block">📦 Total Unidades en Stock</span>
+        <span class="text-3xl font-extrabold text-slate-900 mt-1 block">{{ total_unidades }} unds</span>
+        <span class="text-xs text-slate-400 mt-1 block">Listas para entrega inmediata</span>
+    </div>
+
+    <div class="bg-white rounded-2xl p-5 border border-amber-200 shadow-xs">
+        <span class="text-xs font-extrabold uppercase text-amber-800 block">💰 Capital Invertido (Al Costo)</span>
+        <span class="text-3xl font-extrabold text-slate-900 mt-1 block">{{ capital_costo | cop }}</span>
+        <span class="text-xs text-slate-500 mt-1 block">Valorado a costo proveedor ($ 2.700 base)</span>
+    </div>
+
+    <div class="bg-white rounded-2xl p-5 border border-blue-200 shadow-xs">
+        <span class="text-xs font-extrabold uppercase text-blue-800 block">🏷️ Valor Total a Precio de Venta</span>
+        <span class="text-3xl font-extrabold text-blue-700 mt-1 block">{{ capital_venta | cop }}</span>
+        <span class="text-xs text-slate-500 mt-1 block">Ingreso al vender todo el stock ($ 4.000 base)</span>
+    </div>
+
+    <div class="bg-white rounded-2xl p-5 border border-emerald-200 shadow-xs">
+        <span class="text-xs font-extrabold uppercase text-emerald-800 block">📈 Ganancia Potencial en Bodega</span>
+        <span class="text-3xl font-extrabold text-emerald-600 mt-1 block">+ {{ ganancia_potencial | cop }}</span>
+        <span class="text-xs text-slate-500 mt-1 block">Utilidad libre al rotar el inventario (+$ 1.300/u)</span>
+    </div>
+</div>
+
+<!-- BOTONES DE ACCIÓN DE INVENTARIO -->
+<div class="flex flex-wrap items-center justify-between gap-3 bg-slate-900 text-white p-5 rounded-2xl shadow">
+    <div>
+        <h2 class="text-base font-extrabold text-amber-400">🚚 ¿Llegó pedido de snacks del proveedor?</h2>
+        <p class="text-xs text-slate-300">Registra las unidades que compraste (a $ 2.700 c/u) o agrega nuevos sabores a tu catálogo.</p>
+    </div>
+    <div class="flex flex-wrap gap-2.5">
+        <button type="button" onclick="abrirModal('modalEntradaStock')" class="px-5 py-3 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-extrabold text-xs md:text-sm shadow transition">
+            ➕ Surtir / Comprar Lote a Proveedor
+        </button>
+        <button type="button" onclick="abrirModal('modalNuevoProducto')" class="px-4 py-3 rounded-xl bg-slate-700 hover:bg-slate-600 text-white font-bold text-xs md:text-sm border border-slate-600 transition">
+            🥔 Crear Nuevo Sabor / Snack
+        </button>
+    </div>
+</div>
+
+<!-- CATÁLOGO DE PRODUCTOS (SNACKS) -->
+<div class="bg-white rounded-2xl border border-slate-200 p-5 shadow-xs">
+    <h3 class="text-base font-extrabold text-slate-900 mb-4">🥔 Catálogo de Snacks y Rentabilidad por Unidad</h3>
+    <div class="overflow-x-auto">
+        <table class="w-full text-left border-collapse text-xs md:text-sm">
+            <thead>
+                <tr class="bg-slate-900 text-white">
+                    <th class="py-3 px-3 rounded-tl-xl">Código</th>
+                    <th class="py-3 px-3">Snack / Sabor</th>
+                    <th class="py-3 px-3 text-right">Costo Compra</th>
+                    <th class="py-3 px-3 text-right">Precio Venta</th>
+                    <th class="py-3 px-3 text-right">Ganancia / Und</th>
+                    <th class="py-3 px-3 text-center">Stock Actual</th>
+                    <th class="py-3 px-3 text-right">Capital Costo</th>
+                    <th class="py-3 px-3 text-right rounded-tr-xl">Acción</th>
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-200">
+                {% for p in productos %}
+                <tr class="hover:bg-slate-50">
+                    <td class="py-3 px-3 font-extrabold text-slate-700">{{ p.codigo }}</td>
+                    <td class="py-3 px-3">
+                        <div class="font-extrabold text-slate-900">{{ p.nombre }}</div>
+                        <div class="text-xs text-slate-500">{{ p.sabor }} • {{ p.presentacion }}</div>
+                    </td>
+                    <td class="py-3 px-3 text-right font-semibold text-slate-700">{{ p.costo_compra | cop }}</td>
+                    <td class="py-3 px-3 text-right font-extrabold text-slate-900">{{ p.precio_venta | cop }}</td>
+                    <td class="py-3 px-3 text-right">
+                        <span class="font-extrabold text-emerald-600">+ {{ p.ganancia_unitaria | cop }}</span>
+                        <span class="block text-[10px] text-slate-400">{{ p.margen_porcentaje }}% margen</span>
+                    </td>
+                    <td class="py-3 px-3 text-center">
+                        <span class="px-3 py-1 rounded-full font-extrabold text-xs {% if p.bajo_stock %}bg-rose-100 text-rose-800{% else %}bg-emerald-100 text-emerald-800{% endif %}">
+                            {{ p.stock_actual }} unds
+                        </span>
+                    </td>
+                    <td class="py-3 px-3 text-right font-bold text-slate-800">{{ p.valor_inventario_costo | cop }}</td>
+                    <td class="py-3 px-3 text-right">
+                        <button type="button"
+                            onclick="abrirEditarProducto('{{ p.id }}', '{{ p.nombre }}', '{{ p.sabor }}', '{{ p.presentacion }}', '{{ p.costo_compra | int }}', '{{ p.precio_venta | int }}', '{{ p.stock_minimo }}')"
+                            class="px-3 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs">
+                            ✏️ Editar
+                        </button>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- HISTORIAL DE MOVIMIENTOS DE INVENTARIO (KARDEX) -->
+<div class="bg-white rounded-2xl border border-slate-200 p-5 shadow-xs">
+    <h3 class="text-base font-extrabold text-slate-900 mb-3">📋 Últimos Movimientos de Bodega (Entradas y Salidas)</h3>
+    <div class="overflow-x-auto">
+        <table class="w-full text-left border-collapse text-xs">
+            <thead>
+                <tr class="border-b border-slate-200 text-slate-500 uppercase">
+                    <th class="py-2.5">Fecha</th>
+                    <th class="py-2.5">Producto</th>
+                    <th class="py-2.5">Movimiento</th>
+                    <th class="py-2.5 text-center">Cantidad</th>
+                    <th class="py-2.5 text-center">Stock Final</th>
+                    <th class="py-2.5 text-right">Valor Costo</th>
+                    <th class="py-2.5">Detalle / Observación</th>
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-100">
+                {% for m in movimientos %}
+                <tr>
+                    <td class="py-2.5 text-slate-500">{{ m.fecha.strftime('%d/%m/%Y %H:%M') }}</td>
+                    <td class="py-2.5 font-bold text-slate-800">{{ m.producto.nombre if m.producto else '' }}</td>
+                    <td class="py-2.5">
+                        {% if m.tipo == 'ENTRADA_PROVEEDOR' %}
+                        <span class="px-2 py-0.5 rounded bg-emerald-100 text-emerald-800 font-bold">➕ COMPRA PROVEEDOR</span>
+                        {% elif m.tipo == 'VENTA' %}
+                        <span class="px-2 py-0.5 rounded bg-blue-100 text-blue-800 font-bold">🛒 VENTA</span>
+                        {% else %}
+                        <span class="px-2 py-0.5 rounded bg-slate-200 text-slate-700 font-bold">{{ m.tipo }}</span>
+                        {% endif %}
+                    </td>
+                    <td class="py-2.5 text-center font-extrabold {% if m.tipo == 'VENTA' %}text-rose-600{% else %}text-emerald-600{% endif %}">
+                        {% if m.tipo == 'VENTA' %}-{% else %}+{% endif %}{{ m.cantidad }}
+                    </td>
+                    <td class="py-2.5 text-center font-bold text-slate-700">{{ m.stock_resultante }}</td>
+                    <td class="py-2.5 text-right font-semibold">{{ m.costo_total | cop }}</td>
+                    <td class="py-2.5 text-slate-600">{{ m.observacion }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- MODAL: ENTRADA DE LOTE / COMPRA A PROVEEDOR -->
+<div id="modalEntradaStock" class="fixed inset-0 bg-slate-900/60 hidden items-center justify-center z-50 p-4">
+    <div class="bg-white rounded-2xl shadow-2xl max-w-lg w-full overflow-hidden animate-modal">
+        <div class="bg-slate-900 text-white px-6 py-4 flex items-center justify-between">
+            <h3 class="text-base font-extrabold text-amber-400">📦 Surtir Inventario (Compra a Proveedor)</h3>
+            <button type="button" onclick="cerrarModal('modalEntradaStock')" class="text-slate-400 hover:text-white font-bold">✕</button>
+        </div>
+        <form action="/inventario/entrada" method="post" class="p-6 space-y-4">
+            <div>
+                <label class="block text-xs font-bold text-slate-700 mb-1">Selecciona el Snack</label>
+                <select name="producto_id" class="w-full px-3 py-2.5 rounded-xl border border-slate-300 font-bold text-sm bg-white">
+                    {% for p in productos %}
+                    <option value="{{ p.id }}">{{ p.nombre }} (Stock actual: {{ p.stock_actual }} unds)</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div class="grid grid-cols-2 gap-3">
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 mb-1">Cantidad de Unidades Recibidas *</label>
+                    <input type="number" name="cantidad" id="lote_cantidad" min="1" value="50" required oninput="calcularCompraLote()"
+                        class="w-full px-3 py-2.5 rounded-xl border border-slate-300 font-extrabold text-base">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 mb-1">Costo Unitario Proveedor ($)</label>
+                    <input type="number" step="50" name="costo_unitario" id="lote_costo_unit" value="2700" required oninput="calcularCompraLote()"
+                        class="w-full px-3 py-2.5 rounded-xl border border-slate-300 font-extrabold text-base">
+                </div>
+            </div>
+
+            <div class="bg-amber-50 border border-amber-200 rounded-xl p-3 flex justify-between items-center text-sm">
+                <span class="font-bold text-amber-900">Costo Total del Pedido:</span>
+                <span id="lote_costo_total_display" class="text-lg font-extrabold text-slate-900">$ 135.000</span>
+            </div>
+
+            <div>
+                <label class="block text-xs font-bold text-slate-700 mb-1">¿Descontar este pago de tu Caja / Transferencia?</label>
+                <select name="afectar_caja" class="w-full px-3 py-2 rounded-xl border border-slate-300 text-xs font-bold bg-white">
+                    <option value="si">Sí, registrar salida de dinero (Efectivo / Transferencia)</option>
+                    <option value="no">No (Solo sumar las unidades al stock)</option>
+                </select>
+            </div>
+
+            <div class="grid grid-cols-2 gap-3">
+                <div>
+                    <label class="block text-xs font-bold text-emerald-700 mb-1">💵 Pagado en Efectivo ($)</label>
+                    <input type="number" step="100" min="0" name="pagado_efectivo" id="lote_efec" value="135000"
+                        class="w-full px-3 py-2 rounded-xl border border-slate-300 font-bold">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-blue-700 mb-1">📲 Pagado Transferencia ($)</label>
+                    <input type="number" step="100" min="0" name="pagado_transferencia" id="lote_transf" value="0"
+                        class="w-full px-3 py-2 rounded-xl border border-slate-300 font-bold">
+                </div>
+            </div>
+
+            <div class="flex justify-end gap-2 pt-2">
+                <button type="button" onclick="cerrarModal('modalEntradaStock')" class="px-4 py-2 rounded-xl border border-slate-300 text-sm font-semibold">Cancelar</button>
+                <button type="submit" class="px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-sm">➕ Ingresar Stock</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- MODAL: CREAR NUEVO SNACK -->
+<div id="modalNuevoProducto" class="fixed inset-0 bg-slate-900/60 hidden items-center justify-center z-50 p-4">
+    <div class="bg-white rounded-2xl shadow-2xl max-w-md w-full overflow-hidden animate-modal">
+        <div class="bg-slate-900 text-white px-6 py-4 flex items-center justify-between">
+            <h3 class="text-base font-extrabold text-amber-400">🥔 Agregar Nuevo Snack al Catálogo</h3>
+            <button type="button" onclick="cerrarModal('modalNuevoProducto')" class="text-slate-400 hover:text-white font-bold">✕</button>
+        </div>
+        <form action="/inventario/crear" method="post" class="p-6 space-y-4">
+            <div>
+                <label class="block text-xs font-bold text-slate-700 mb-1">Nombre del Producto *</label>
+                <input type="text" name="nombre" required placeholder="Ej: Papas Snack BBQ" class="w-full px-3 py-2 rounded-xl border border-slate-300 text-sm font-bold">
+            </div>
+            <div class="grid grid-cols-2 gap-3">
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 mb-1">Sabor</label>
+                    <input type="text" name="sabor" value="BBQ" class="w-full px-3 py-2 rounded-xl border border-slate-300 text-sm">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 mb-1">Stock Inicial</label>
+                    <input type="number" name="stock_actual" min="0" value="0" class="w-full px-3 py-2 rounded-xl border border-slate-300 text-sm font-bold">
+                </div>
+            </div>
+            <div class="grid grid-cols-2 gap-3">
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 mb-1">Costo Compra ($)</label>
+                    <input type="number" step="50" name="costo_compra" value="2700" required class="w-full px-3 py-2 rounded-xl border border-slate-300 font-bold">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-emerald-700 mb-1">Precio Venta ($)</label>
+                    <input type="number" step="50" name="precio_venta" value="4000" required class="w-full px-3 py-2 rounded-xl border border-slate-300 font-bold">
+                </div>
+            </div>
+            <div class="flex justify-end gap-2 pt-2">
+                <button type="button" onclick="cerrarModal('modalNuevoProducto')" class="px-4 py-2 rounded-xl border border-slate-300 text-sm font-semibold">Cancelar</button>
+                <button type="submit" class="px-5 py-2 rounded-xl bg-amber-500 hover:bg-amber-600 text-slate-950 font-extrabold text-sm">Crear Snack</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- MODAL: EDITAR PRODUCTO -->
+<div id="modalEditarProducto" class="fixed inset-0 bg-slate-900/60 hidden items-center justify-center z-50 p-4">
+    <div class="bg-white rounded-2xl shadow-2xl max-w-md w-full overflow-hidden animate-modal">
+        <div class="bg-slate-900 text-white px-6 py-4 flex items-center justify-between">
+            <h3 class="text-base font-extrabold text-amber-400">✏️ Editar Producto</h3>
+            <button type="button" onclick="cerrarModal('modalEditarProducto')" class="text-slate-400 hover:text-white font-bold">✕</button>
+        </div>
+        <form id="formEditarProducto" method="post" class="p-6 space-y-4">
+            <div>
+                <label class="block text-xs font-bold text-slate-700 mb-1">Nombre del Snack</label>
+                <input type="text" name="nombre" id="edit_prod_nombre" required class="w-full px-3 py-2 rounded-xl border border-slate-300 text-sm font-bold">
+            </div>
+            <div class="grid grid-cols-2 gap-3">
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 mb-1">Sabor</label>
+                    <input type="text" name="sabor" id="edit_prod_sabor" class="w-full px-3 py-2 rounded-xl border border-slate-300 text-sm">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 mb-1">Presentación</label>
+                    <input type="text" name="presentacion" id="edit_prod_pres" class="w-full px-3 py-2 rounded-xl border border-slate-300 text-sm">
+                </div>
+            </div>
+            <div class="grid grid-cols-3 gap-3">
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 mb-1">Costo ($)</label>
+                    <input type="number" step="50" name="costo_compra" id="edit_prod_costo" required class="w-full px-3 py-2 rounded-xl border border-slate-300 font-bold">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-emerald-700 mb-1">Venta ($)</label>
+                    <input type="number" step="50" name="precio_venta" id="edit_prod_precio" required class="w-full px-3 py-2 rounded-xl border border-slate-300 font-bold">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 mb-1">Alerta Stock</label>
+                    <input type="number" name="stock_minimo" id="edit_prod_min" required class="w-full px-3 py-2 rounded-xl border border-slate-300 font-bold">
+                </div>
+            </div>
+            <div class="flex justify-end gap-2 pt-2">
+                <button type="button" onclick="cerrarModal('modalEditarProducto')" class="px-4 py-2 rounded-xl border border-slate-300 text-sm font-semibold">Cancelar</button>
+                <button type="submit" class="px-5 py-2 rounded-xl bg-amber-500 hover:bg-amber-600 text-slate-950 font-extrabold text-sm">Actualizar</button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function calcularCompraLote() {
+    const cant = Math.max(Number(document.getElementById("lote_cantidad").value) || 0, 0);
+    const costo = Math.max(Number(document.getElementById("lote_costo_unit").value) || 0, 0);
+    const total = cant * costo;
+    document.getElementById("lote_costo_total_display").textContent = formatCOP(total);
+    document.getElementById("lote_efec").value = total;
+    document.getElementById("lote_transf").value = 0;
+}
+
+function abrirEditarProducto(id, nombre, sabor, pres, costo, precio, min) {
+    document.getElementById("formEditarProducto").action = "/inventario/" + id + "/editar";
+    document.getElementById("edit_prod_nombre").value = nombre;
+    document.getElementById("edit_prod_sabor").value = sabor;
+    document.getElementById("edit_prod_pres").value = pres;
+    document.getElementById("edit_prod_costo").value = costo;
+    document.getElementById("edit_prod_precio").value = precio;
+    document.getElementById("edit_prod_min").value = min;
+    abrirModal("modalEditarProducto");
+}
+</script>
+{% endblock %}

@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Acceso - {{ settings.BUSINESS_NAME }}</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-slate-900 min-h-screen flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl shadow-2xl max-w-sm w-full p-8 text-center space-y-5">
+        <img src="/static/img/logo.svg" alt="Logo" class="w-16 h-16 mx-auto rounded-2xl shadow">
+        <div>
+            <h1 class="text-xl font-extrabold text-slate-900">{{ settings.BUSINESS_NAME }}</h1>
+            <p class="text-xs text-slate-500 mt-1">Ingresa el PIN de seguridad para entrar al sistema</p>
+        </div>
+        {% if error %}
+        <div class="p-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 text-xs font-bold">
+            ❌ {{ error }}
+        </div>
+        {% endif %}
+        <form action="/pin-login" method="post" class="space-y-4">
+            <input type="password" name="pin" required autofocus placeholder="••••"
+                class="w-full text-center text-2xl tracking-widest font-extrabold px-4 py-3 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-amber-500">
+            <button type="submit" class="w-full py-3 rounded-xl bg-amber-500 hover:bg-amber-600 text-slate-950 font-extrabold text-sm shadow">
+                Entrar al Sistema
+            </button>
+        </form>
+    </div>
+</body>
+</html>

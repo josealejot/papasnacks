@@ -1,0 +1,153 @@
+{% extends "base.html" %}
+
+{% block title %}Factura {{ venta.numero_factura }} - {{ settings.BUSINESS_NAME }}{% endblock %}
+{% block page_header %}Detalle de Factura {{ venta.numero_factura }}{% endblock %}
+{% block page_subtitle %}Consulta el desglose de productos, utilidad, pagos mixtos y recibos de abono{% endblock %}
+
+{% block content %}
+<div class="flex flex-wrap items-center justify-between gap-3">
+    <a href="/ventas" class="inline-flex items-center gap-1.5 text-xs font-bold text-slate-600 hover:text-slate-900 bg-white px-3.5 py-2 rounded-xl border border-slate-300">
+        ⬅ Volver a Ventas
+    </a>
+    <div class="flex flex-wrap items-center gap-2">
+        {% if venta.saldo_pendiente > 0 and venta.estado != 'ANULADA' %}
+        <button type="button"
+            onclick="abrirModalAbono('{{ venta.id }}', '{{ venta.numero_factura }}', '{{ venta.cliente.nombre }}', '{{ venta.saldo_pendiente }}')"
+            class="px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs shadow transition">
+            💰 Registrar Abono Ahora
+        </button>
+        {% endif %}
+        <a href="/reportes/factura/{{ venta.id }}/pdf" target="_blank" class="px-4 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-extrabold text-xs shadow transition">
+            📄 Descargar / Imprimir Factura PDF
+        </a>
+        {% if venta.estado != 'ANULADA' %}
+        <form action="/ventas/{{ venta.id }}/anular" method="post" onsubmit="return confirm('¿Estás seguro de anular esta factura? Se devolverán las unidades al inventario.');">
+            <button type="submit" class="px-3.5 py-2.5 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 font-bold text-xs">
+                🗑️ Anular Factura
+            </button>
+        </form>
+        {% endif %}
+    </div>
+</div>
+
+<!-- FICHA PRINCIPAL DE LA FACTURA -->
+<div class="bg-white rounded-2xl border border-slate-200 shadow-xs p-6 space-y-6">
+    <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-200 pb-4">
+        <div>
+            <div class="flex items-center gap-3">
+                <h2 class="text-2xl font-extrabold text-slate-900">{{ venta.numero_factura }}</h2>
+                {% if venta.estado == 'PAGADO' %}
+                <span class="px-3 py-1 rounded-full bg-emerald-100 text-emerald-800 font-extrabold text-xs">🟢 PAGADO TOTAL</span>
+                {% elif venta.estado == 'PARCIAL' %}
+                <span class="px-3 py-1 rounded-full bg-amber-100 text-amber-900 font-extrabold text-xs">🟡 ABONO PARCIAL</span>
+                {% elif venta.estado == 'ANULADA' %}
+                <span class="px-3 py-1 rounded-full bg-slate-200 text-slate-700 font-extrabold text-xs">⚪ ANULADA</span>
+                {% else %}
+                <span class="px-3 py-1 rounded-full bg-rose-100 text-rose-800 font-extrabold text-xs">🔴 PENDIENTE DE PAGO</span>
+                {% endif %}
+            </div>
+            <p class="text-xs text-slate-500 mt-1">Emitida el {{ venta.fecha.strftime('%d/%m/%Y a las %H:%M') }}</p>
+        </div>
+
+        <div class="bg-slate-50 px-4 py-3 rounded-xl border border-slate-200 text-xs space-y-0.5">
+            <div class="font-extrabold text-slate-900 text-sm">👤 {{ venta.cliente.nombre }}</div>
+            <div class="text-slate-600">Tel: {{ venta.cliente.telefono or 'No registrado' }} | Doc: {{ venta.cliente.documento or 'N/A' }}</div>
+            <div class="text-slate-500">Dir: {{ venta.cliente.direccion or 'Entrega directa' }}</div>
+        </div>
+    </div>
+
+    <!-- Tabla de Snacks Vendidos -->
+    <div class="overflow-x-auto">
+        <table class="w-full text-left border-collapse text-xs md:text-sm">
+            <thead>
+                <tr class="bg-slate-900 text-white">
+                    <th class="py-3 px-4 rounded-tl-xl">Snack / Producto</th>
+                    <th class="py-3 px-4 text-center">Cantidad</th>
+                    <th class="py-3 px-4 text-right">Costo Unit.</th>
+                    <th class="py-3 px-4 text-right">Precio Venta</th>
+                    <th class="py-3 px-4 text-right">Ganancia Línea</th>
+                    <th class="py-3 px-4 text-right rounded-tr-xl">Subtotal Venta</th>
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-200">
+                {% for d in venta.detalles %}
+                <tr>
+                    <td class="py-3 px-4 font-bold text-slate-900">{{ d.nombre_producto }}</td>
+                    <td class="py-3 px-4 text-center font-extrabold">{{ d.cantidad }} unds</td>
+                    <td class="py-3 px-4 text-right text-slate-500">{{ d.costo_unitario | cop }}</td>
+                    <td class="py-3 px-4 text-right font-semibold">{{ d.precio_unitario | cop }}</td>
+                    <td class="py-3 px-4 text-right font-bold text-emerald-600">+ {{ d.utilidad_linea | cop }}</td>
+                    <td class="py-3 px-4 text-right font-extrabold text-slate-900">{{ d.subtotal_venta | cop }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Tarjetas de Resumen Financiero de la Factura -->
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 pt-2">
+        <div class="p-3.5 rounded-xl bg-slate-50 border border-slate-200">
+            <span class="text-[11px] font-bold text-slate-500 uppercase block">Total Factura</span>
+            <span class="text-lg font-extrabold text-slate-900">{{ venta.total_venta | cop }}</span>
+            <span class="text-[11px] text-emerald-600 font-bold block">Utilidad: +{{ venta.utilidad_bruta | cop }}</span>
+        </div>
+        <div class="p-3.5 rounded-xl bg-emerald-50 border border-emerald-200">
+            <span class="text-[11px] font-bold text-emerald-800 uppercase block">💵 Pagado Efectivo</span>
+            <span class="text-lg font-extrabold text-emerald-700">{{ venta.pagado_efectivo | cop }}</span>
+        </div>
+        <div class="p-3.5 rounded-xl bg-blue-50 border border-blue-200">
+            <span class="text-[11px] font-bold text-blue-800 uppercase block">📲 Pagado Transferencia</span>
+            <span class="text-lg font-extrabold text-blue-700">{{ venta.pagado_transferencia | cop }}</span>
+        </div>
+        <div class="p-3.5 rounded-xl bg-emerald-100/70 border border-emerald-300">
+            <span class="text-[11px] font-bold text-emerald-900 uppercase block">✅ Total Abonado</span>
+            <span class="text-lg font-extrabold text-emerald-800">{{ venta.monto_pagado | cop }}</span>
+        </div>
+        <div class="p-3.5 rounded-xl {% if venta.saldo_pendiente > 0 %}bg-rose-100 border-rose-300{% else %}bg-slate-100 border-slate-200{% endif %} border">
+            <span class="text-[11px] font-bold {% if venta.saldo_pendiente > 0 %}text-rose-800{% else %}text-slate-600{% endif %} uppercase block">Saldo Pendiente</span>
+            <span class="text-lg font-extrabold {% if venta.saldo_pendiente > 0 %}text-rose-600{% else %}text-slate-800{% endif %}">{{ venta.saldo_pendiente | cop }}</span>
+        </div>
+    </div>
+
+    <!-- Historial de Abonos y Recibos PDF de esta factura -->
+    <div class="pt-4 border-t border-slate-200">
+        <h3 class="text-sm font-extrabold text-slate-900 mb-3">🧾 Historial de Pagos y Abonos Recibidos</h3>
+        {% if venta.transacciones %}
+        <div class="overflow-x-auto">
+            <table class="w-full text-left border-collapse text-xs">
+                <thead>
+                    <tr class="border-b border-slate-200 text-slate-500 uppercase">
+                        <th class="py-2">Recibo</th>
+                        <th class="py-2">Fecha</th>
+                        <th class="py-2">Canal</th>
+                        <th class="py-2 text-right">Efectivo</th>
+                        <th class="py-2 text-right">Transferencia</th>
+                        <th class="py-2 text-right">Total Recibido</th>
+                        <th class="py-2 text-right">Comprobante</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-100">
+                    {% for tx in venta.transacciones %}
+                    <tr>
+                        <td class="py-2.5 font-extrabold text-slate-900">{{ tx.codigo_recibo or tx.id }}</td>
+                        <td class="py-2.5 text-slate-600">{{ tx.fecha.strftime('%d/%m/%Y %H:%M') }}</td>
+                        <td class="py-2.5"><span class="px-2 py-0.5 rounded bg-slate-100 font-bold">{{ tx.canal }}</span></td>
+                        <td class="py-2.5 text-right text-emerald-700 font-semibold">{{ tx.monto_efectivo | cop }}</td>
+                        <td class="py-2.5 text-right text-blue-700 font-semibold">{{ tx.monto_transferencia | cop }}</td>
+                        <td class="py-2.5 text-right font-extrabold text-slate-900">{{ tx.monto_total | cop }}</td>
+                        <td class="py-2.5 text-right">
+                            <a href="/reportes/recibo/{{ tx.id }}/pdf" target="_blank" class="px-2.5 py-1 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold">
+                                📄 Recibo PDF
+                            </a>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <p class="text-xs text-slate-500">Esta factura se registró a crédito y aún no tiene abonos registrados.</p>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,129 @@
+{% extends "base.html" %}
+
+{% block title %}Centro de Reportes Excel y PDF - {{ settings.BUSINESS_NAME }}{% endblock %}
+{% block page_header %}Centro de Reportes Contables y Auditoría de Capital{% endblock %}
+{% block page_subtitle %}Descarga informes ejecutivos en Excel (.xlsx) y comprobantes PDF membretados{% endblock %}
+
+{% block content %}
+<!-- BANNER DESCARGA EXCEL -->
+<div class="bg-gradient-to-r from-emerald-800 to-teal-900 rounded-2xl p-6 text-white shadow-lg flex flex-col md:flex-row md:items-center justify-between gap-4">
+    <div class="space-y-1">
+        <h2 class="text-xl font-extrabold">📊 Reporte Contable Maestro en Excel (.xlsx)</h2>
+        <p class="text-xs text-emerald-100 max-w-2xl">
+            Incluye 5 hojas estilizadas con fórmulas y formato moneda: <strong>1. Resumen de Capital</strong>, <strong>2. Ventas y Utilidades</strong>,
+            <strong>3. Cartera de Deudores</strong>, <strong>4. Inventario Valorizado ($2.700 / $4.000)</strong> y <strong>5. Flujo de Efectivo y Transferencias</strong>.
+        </p>
+    </div>
+    <a href="/reportes/excel" class="px-6 py-3.5 rounded-xl bg-white hover:bg-emerald-50 text-emerald-950 font-extrabold text-sm shadow-lg shrink-0 text-center transition">
+        ⬇️ Descargar Excel Completo (.xlsx)
+    </a>
+</div>
+
+<!-- ESTADO DE RESULTADOS Y RADIOGRAFÍA DE CAJA VS BANCOS -->
+<div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+    <!-- Estado de Resultados (P&G) -->
+    <div class="bg-white rounded-2xl border border-slate-200 p-5 shadow-xs space-y-3">
+        <h3 class="text-base font-extrabold text-slate-900 border-b border-slate-100 pb-2">📈 Estado de Resultados (Rentabilidad Comercial)</h3>
+        <div class="space-y-2 text-sm">
+            <div class="flex justify-between py-1.5 border-b border-slate-100">
+                <span class="text-slate-600">Unidades Totales Vendidas:</span>
+                <span class="font-extrabold text-slate-900">{{ resumen.unidades_vendidas }} paquetes</span>
+            </div>
+            <div class="flex justify-between py-1.5 border-b border-slate-100">
+                <span class="text-slate-600">(+) Ingresos por Ventas Facturadas:</span>
+                <span class="font-extrabold text-slate-900">{{ resumen.ventas_totales | cop }}</span>
+            </div>
+            <div class="flex justify-between py-1.5 border-b border-slate-100">
+                <span class="text-slate-600">(-) Costo de Mercancía Vendida ($2.700 base):</span>
+                <span class="font-bold text-rose-600">- {{ resumen.costo_mercancia_vendida | cop }}</span>
+            </div>
+            <div class="flex justify-between py-2 px-3 rounded-xl bg-emerald-50 font-extrabold text-emerald-900">
+                <span>(=) UTILIDAD BRUTA EN VENTAS ({{ resumen.margen_bruto_pct }}%):</span>
+                <span>+ {{ resumen.utilidad_bruta_ventas | cop }}</span>
+            </div>
+            <div class="flex justify-between py-1.5 border-b border-slate-100">
+                <span class="text-slate-600">(-) Gastos Operativos (Fletes, Empaques, Otros):</span>
+                <span class="font-bold text-rose-600">- {{ resumen.gastos_operativos | cop }}</span>
+            </div>
+            <div class="flex justify-between py-2.5 px-3 rounded-xl bg-slate-900 text-white font-extrabold text-base">
+                <span>(=) UTILIDAD NETA REAL:</span>
+                <span class="text-amber-400">{{ resumen.utilidad_neta | cop }}</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Balance de Liquidez y Patrimonio -->
+    <div class="bg-white rounded-2xl border border-slate-200 p-5 shadow-xs space-y-3">
+        <h3 class="text-base font-extrabold text-slate-900 border-b border-slate-100 pb-2">🏦 Arqueo de Caja, Transferencias y Patrimonio</h3>
+        <div class="space-y-2 text-sm">
+            <div class="flex justify-between py-1.5 border-b border-slate-100">
+                <span class="text-slate-600">💵 Saldo en Efectivo (Caja Física):</span>
+                <span class="font-extrabold text-emerald-700">{{ resumen.caja_efectivo | cop }}</span>
+            </div>
+            <div class="flex justify-between py-1.5 border-b border-slate-100">
+                <span class="text-slate-600">📲 Saldo en Transferencias Electrónicas:</span>
+                <span class="font-extrabold text-blue-700">{{ resumen.bancos_transferencia | cop }}</span>
+            </div>
+            <div class="flex justify-between py-2 px-3 rounded-xl bg-blue-50 font-extrabold text-blue-900">
+                <span>(=) LIQUIDEZ TOTAL EN MANO:</span>
+                <span>{{ resumen.liquidez_total | cop }}</span>
+            </div>
+            <div class="flex justify-between py-1.5 border-b border-slate-100">
+                <span class="text-slate-600">(+) Capital en la Calle (Cartera por Cobrar):</span>
+                <span class="font-bold text-rose-600">{{ resumen.capital_en_la_calle | cop }}</span>
+            </div>
+            <div class="flex justify-between py-1.5 border-b border-slate-100">
+                <span class="text-slate-600">(+) Inventario en Bodega (Valorizado al Costo):</span>
+                <span class="font-bold text-amber-700">{{ resumen.capital_inventario_costo | cop }}</span>
+            </div>
+            <div class="flex justify-between py-2.5 px-3 rounded-xl bg-slate-900 text-white font-extrabold text-base">
+                <span>(=) PATRIMONIO TOTAL DEL NEGOCIO:</span>
+                <span class="text-emerald-400">{{ resumen.patrimonio_total | cop }}</span>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- LIBRO DIARIO DE TRANSACCIONES Y RECIBOS PDF -->
+<div class="bg-white rounded-2xl border border-slate-200 p-5 shadow-xs">
+    <h3 class="text-base font-extrabold text-slate-900 mb-3">🧾 Libro Diario de Movimientos (Efectivo y Transferencias)</h3>
+    <div class="overflow-x-auto">
+        <table class="w-full text-left border-collapse text-xs">
+            <thead>
+                <tr class="bg-slate-900 text-white">
+                    <th class="py-3 px-3 rounded-tl-xl">Recibo</th>
+                    <th class="py-3 px-3">Fecha</th>
+                    <th class="py-3 px-3">Tipo</th>
+                    <th class="py-3 px-3">Canal</th>
+                    <th class="py-3 px-3 text-right">Efectivo</th>
+                    <th class="py-3 px-3 text-right">Transferencia</th>
+                    <th class="py-3 px-3 text-right">Total</th>
+                    <th class="py-3 px-3">Concepto</th>
+                    <th class="py-3 px-3 text-right rounded-tr-xl">PDF</th>
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-200">
+                {% for tx in transacciones %}
+                <tr class="hover:bg-slate-50">
+                    <td class="py-2.5 px-3 font-extrabold text-slate-900">{{ tx.codigo_recibo or tx.id }}</td>
+                    <td class="py-2.5 px-3 text-slate-500">{{ tx.fecha.strftime('%d/%m/%Y %H:%M') }}</td>
+                    <td class="py-2.5 px-3 font-bold">{{ tx.tipo }}</td>
+                    <td class="py-2.5 px-3"><span class="px-2 py-0.5 rounded bg-slate-100 font-bold">{{ tx.canal }}</span></td>
+                    <td class="py-2.5 px-3 text-right font-semibold text-emerald-700">{{ tx.monto_efectivo | cop }}</td>
+                    <td class="py-2.5 px-3 text-right font-semibold text-blue-700">{{ tx.monto_transferencia | cop }}</td>
+                    <td class="py-2.5 px-3 text-right font-extrabold {% if tx.es_egreso %}text-rose-600{% else %}text-emerald-600{% endif %}">
+                        {% if tx.es_egreso %}-{% else %}+{% endif %}{{ tx.monto_total | cop }}
+                    </td>
+                    <td class="py-2.5 px-3 text-slate-700">{{ tx.concepto }}</td>
+                    <td class="py-2.5 px-3 text-right">
+                        <a href="/reportes/recibo/{{ tx.id }}/pdf" target="_blank" class="px-2.5 py-1 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold">
+                            📄 PDF
+                        </a>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}
